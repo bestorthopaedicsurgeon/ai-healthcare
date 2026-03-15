@@ -3,8 +3,8 @@ import "./globals.css";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 
 export const metadata: Metadata = {
-  title: "Heidi Health | AI Healthcare MVP",
-  description: "A professional AI-powered scribe for healthcare.",
+  title: "Cliniq AI | The AI Platform for Healthcare",
+  description: "AI-powered clinical workflows — from referral triage to real-time consultation notes.",
 };
 
 export default function RootLayout({
