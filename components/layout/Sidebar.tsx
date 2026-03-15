@@ -43,9 +43,9 @@ export function Sidebar() {
       {/* Logo Area */}
       <div className="flex items-center gap-2 mb-8 px-2">
         <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center">
-          <span className="font-bold text-lg">H</span>
+          <span className="font-bold text-lg">C</span>
         </div>
-        <span className="font-semibold text-xl tracking-tight">Heidi</span>
+        <span className="font-semibold text-xl tracking-tight">Cliniq</span>
         <div className="ml-auto opacity-40">
            <LayoutGrid size={18} />
         </div>
