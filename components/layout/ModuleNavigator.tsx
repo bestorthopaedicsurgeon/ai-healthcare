@@ -3,14 +3,15 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic2, Phone, MessageSquare, ChevronRight } from "lucide-react";
+import { Mic2, Phone, MessageSquare, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const modules = [
-  { label: "Triage", icon: Phone, href: "/triage", color: "text-green-500", bg: "bg-green-50" },
+  { label: "Triage", icon: FileSpreadsheet, href: "/triage", color: "text-emerald-500", bg: "bg-emerald-50" },
+  { label: "Voice", icon: Phone, href: "/voice-agent", color: "text-green-500", bg: "bg-green-50" },
   { label: "Scribe", icon: Mic2, href: "/scribe", color: "text-blue-500", bg: "bg-blue-50" },
-  { label: "AI Chat", icon: MessageSquare, href: "/chat", color: "text-purple-500", bg: "bg-purple-50" },
+  { label: "Chat", icon: MessageSquare, href: "/chat", color: "text-purple-500", bg: "bg-purple-50" },
 ];
 
 export function ModuleNavigator() {

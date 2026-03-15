@@ -14,14 +14,16 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
-  LayoutGrid
+  LayoutGrid,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
 
 const navItems = [
-  { id: "triage", label: "Triage", icon: Phone, href: "/triage" },
+  { id: "triage", label: "Triage", icon: FileSpreadsheet, href: "/triage" },
+  { id: "voice-agent", label: "AI Voice Agent", icon: Phone, href: "/voice-agent" },
   { id: "scribe", label: "Scribe", icon: Mic2, href: "/scribe" },
   { id: "chat", label: "AI Chat", icon: MessageSquare, href: "/chat" },
 ];
