@@ -1,19 +1,33 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Send, Paperclip, FileText, Bot, User, X, Activity } from "lucide-react";
+import { Send, Paperclip, FileText, Bot, User, X, Activity, Loader2 } from "lucide-react";
 import { usePatient } from "@/context/PatientContext";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import ReactMarkdown from "react-markdown";
+import { API_CONSTANTS } from "@/lib/api-constants";
 
 export default function ChatPage() {
   const router = useRouter();
   const { activeSession, activeSessionId, activePatientId } = usePatient();
+  const { apiFetch } = useAuth();
+  
   const [messages, setMessages] = useState<{id: string, role: "user" | "assistant", content: string}[]>([]);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<{name: string, size: string}[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
 
   // Reset messages when active session changes
   useEffect(() => {
@@ -26,14 +40,38 @@ export default function ChatPage() {
     }
   }, [activeSessionId]);
 
-  const sendMessage = () => {
-    if (!input.trim() && files.length === 0) return;
-    const newMessages: any[] = [...messages, { id: Date.now().toString(), role: "user", content: input }];
-    setMessages(newMessages);
+  const sendMessage = async () => {
+    if (!input.trim() || !activeSessionId || isTyping) return;
+    
+    const userMessage = { id: Date.now().toString(), role: "user" as const, content: input.trim() };
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
-    setTimeout(() => {
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: `Analyzing history for ${activeSession?.patient_name}...` }]);
-    }, 1000);
+    setIsTyping(true);
+
+    try {
+      const response = await apiFetch(API_CONSTANTS.CHAT_SESSIONS.replace("{session_id}", activeSessionId), {
+        method: "POST",
+        body: JSON.stringify({ question: userMessage.content })
+      });
+
+      if (!response.ok) throw new Error("Failed to get AI response");
+      
+      const data = await response.json();
+      setMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: data.answer 
+      }]);
+    } catch (err) {
+      console.error(err);
+      setMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: "Sorry, I encountered an error while analyzing the session data. Please try again." 
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -69,24 +107,42 @@ export default function ChatPage() {
                     animate={{ opacity: 1 }}
                     className="flex-1 flex flex-col overflow-hidden"
                 >
-                    <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6">
                         <div className="max-w-3xl mx-auto space-y-6">
                             {messages.map((msg) => (
                                 <div key={msg.id} className={cn("flex gap-4", msg.role === "user" ? "flex-row-reverse" : "")}>
                                     <div className={cn(
-                                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                                        msg.role === "assistant" ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"
+                                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm",
+                                        msg.role === "assistant" ? "bg-purple-50 text-purple-600 border border-purple-100" : "bg-blue-50 text-blue-600 border border-blue-100"
                                     )}>
                                         {msg.role === "assistant" ? <Bot size={16} /> : <User size={16} />}
                                     </div>
                                     <div className={cn(
-                                        "max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm transition-all",
-                                        msg.role === "assistant" ? "bg-gray-50 text-gray-800" : "bg-accent-primary text-white"
+                                        "max-w-[85%] p-5 rounded-[24px] text-sm leading-relaxed shadow-sm transition-all",
+                                        msg.role === "assistant" ? "bg-gray-50 text-gray-800 rounded-tl-none border border-gray-100" : "bg-gray-900 text-white rounded-tr-none shadow-premium"
                                     )}>
-                                        {msg.content}
+                                        {msg.role === "assistant" ? (
+                                            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-purple-600 prose-strong:font-black">
+                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            msg.content
+                                        )}
                                     </div>
                                 </div>
                             ))}
+                            {isTyping && (
+                                <div className="flex gap-4">
+                                    <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0">
+                                        <Bot size={16} />
+                                    </div>
+                                    <div className="bg-gray-50 border border-gray-100 p-4 rounded-[24px] rounded-tl-none flex items-center gap-1">
+                                        <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-purple-400 rounded-full" />
+                                        <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-purple-400 rounded-full" />
+                                        <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-purple-400 rounded-full" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -104,10 +160,12 @@ export default function ChatPage() {
                                 </div>
                             )}
                             <div className="relative group">
-                                <textarea rows={1} placeholder={`Message AI about ${activeSession.patient_name}...`} className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-4 px-6 pr-32 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all resize-none text-sm" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
+                                <textarea rows={1} placeholder={`Message AI about ${activeSession.patient_name}...`} className="w-full bg-gray-50 border border-gray-200 rounded-[20px] py-4 px-6 pr-32 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all resize-none text-sm font-medium" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    <button onClick={() => setFiles([{ name: "report.pdf", size: "1MB" }])} className="p-2 text-gray-400 hover:text-gray-600 transition-all"><Paperclip size={20} /></button>
-                                    <button onClick={sendMessage} className="p-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-all shadow-lg shadow-accent-primary/20"><Send size={20} /></button>
+                                    <button disabled={isTyping} onClick={() => setFiles([{ name: "report.pdf", size: "1MB" }])} className="p-2 text-gray-400 hover:text-gray-600 transition-all disabled:opacity-50"><Paperclip size={20} /></button>
+                                    <button disabled={!input.trim() || isTyping} onClick={sendMessage} className="p-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all shadow-xl disabled:bg-gray-200 disabled:shadow-none">
+                                        {isTyping ? <Loader2 className="animate-spin w-5 h-5" /> : <Send size={20} />}
+                                    </button>
                                 </div>
                             </div>
                         </div>

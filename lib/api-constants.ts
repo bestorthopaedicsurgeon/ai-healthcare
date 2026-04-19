@@ -29,4 +29,7 @@ export const API_CONSTANTS = {
     
     // Categorization
     CATEGORIZATION_BY_REFERRAL: "/api/v1/categorization/referral/{referral_id}",
+
+    // Chat
+    CHAT_SESSIONS: "/api/v1/chat/sessions/{session_id}",
 }
