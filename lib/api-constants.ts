@@ -20,4 +20,13 @@ export const API_CONSTANTS = {
     
     // Sessions
     SESSIONS_BASE: "/api/v1/sessions",
+
+    // Intake (Voice Agent)
+    INTAKE_START: "/api/v1/intake/start",
+    INTAKE_WS_URL: "/api/v1/intake/{intake_id}/websocket-url",
+    INTAKE_RESULT: "/api/v1/intake/{intake_id}/result",
+    INTAKE_COMPLETE: "/api/v1/intake/{intake_id}/complete",
+    
+    // Categorization
+    CATEGORIZATION_BY_REFERRAL: "/api/v1/categorization/referral/{referral_id}",
 }

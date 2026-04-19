@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 import { usePatient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
-import { Upload, Plus, FileText, CheckCircle2, ChevronRight, AlertCircle, Wand2, Activity } from "lucide-react";
+import { Upload, Plus, FileText, CheckCircle2, ChevronRight, AlertCircle, Wand2, Activity, AlertTriangle, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -249,6 +249,28 @@ export default function TriagePage() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="max-w-5xl mx-auto space-y-10 pb-20 mt-6"
               >
+                {/* Flagged Referral Alert */}
+                {referralData.requires_manual_review && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border-2 border-red-100 rounded-[32px] p-8 flex items-start gap-6 shadow-xl shadow-red-500/5 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-red-600 pointer-events-none">
+                      <ShieldAlert size={120} />
+                    </div>
+                    <div className="w-14 h-14 rounded-2xl bg-white border border-red-100 flex items-center justify-center text-red-500 shrink-0 shadow-sm">
+                      <AlertTriangle size={28} className="stroke-[2.5]" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black text-red-900 tracking-tight italic">Flagged for Manual Review</h3>
+                      <p className="text-red-700/80 font-medium text-sm leading-relaxed max-w-2xl">
+                        {referralData.review_reason || "This referral contains insufficient or contradictory clinical data that requires specialist oversight before categorization."}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Header Stats */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Triage Category Radios */}
@@ -287,13 +309,24 @@ export default function TriagePage() {
                   </div>
 
                   <div className="lg:col-span-4 bg-white border border-gray-100 rounded-[32px] p-8 shadow-premium flex flex-col justify-center relative overflow-hidden group">
-                    <div className="absolute -right-10 -bottom-10 opacity-[0.03] text-emerald-500 group-hover:scale-110 transition-transform duration-700 pointer-events-none">
+                    <div className={cn(
+                      "absolute -right-10 -bottom-10 opacity-[0.03] group-hover:scale-110 transition-transform duration-700 pointer-events-none",
+                      referralData.confidence_score < 0.4 ? "text-red-500" : referralData.confidence_score < 0.7 ? "text-orange-500" : "text-emerald-500"
+                    )}>
                        <CheckCircle2 size={160} />
                     </div>
                     <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-4">Agent Confidence</div>
-                    <div className="text-5xl font-black text-emerald-500 tracking-tighter italic">
+                    <div className={cn(
+                      "text-5xl font-black tracking-tighter italic",
+                      referralData.confidence_score < 0.4 ? "text-red-500" : referralData.confidence_score < 0.7 ? "text-orange-500" : "text-emerald-500"
+                    )}>
                       {(referralData.confidence_score * 100).toFixed(0)}% 
-                      <span className="text-emerald-200 text-lg font-bold not-italic ml-2 uppercase tracking-widest">certainty</span>
+                      <span className={cn(
+                        "text-lg font-bold not-italic ml-2 uppercase tracking-widest",
+                        referralData.confidence_score < 0.4 ? "text-red-200" : referralData.confidence_score < 0.7 ? "text-orange-200" : "text-emerald-200"
+                      )}>
+                        {referralData.confidence_score < 0.4 ? "Caution" : referralData.confidence_score < 0.7 ? "Moderate" : "Reliable"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -303,23 +336,59 @@ export default function TriagePage() {
                   <div className="absolute top-0 right-0 p-10 opacity-[0.03] text-purple-500 pointer-events-none group-hover:scale-110 transition-transform duration-700">
                     <Wand2 size={160} />
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] font-black text-purple-600 uppercase tracking-[0.3em] mb-6">
+                  <div className="flex items-center gap-3 text-[10px] font-black text-purple-600 uppercase tracking-[0.3em] mb-4">
                     <div className="w-6 h-6 rounded-lg bg-purple-50 flex items-center justify-center">
-                      <CheckCircle2 size={14} />
+                      <Wand2 size={14} />
                     </div>
-                    Clinical Triage Logic
+                    Clinical Intelligence
                   </div>
-                  <h3 className="text-3xl font-black text-gray-900 mb-6 tracking-tight italic">Automated Assessment</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-8 tracking-tight">AI Generated Summary</h3>
                   
                   <div className="space-y-8 relative z-10">
-                    <p className="text-gray-900 leading-relaxed text-2xl font-black italic">
-                      "{referralData.triage_summary}"
-                    </p>
+                    <div className="relative">
+                      <div className="absolute -left-4 top-0 bottom-0 w-1 bg-purple-100 rounded-full" />
+                      <p className="text-gray-800 leading-relaxed text-xl font-medium italic pl-4">
+                        "{referralData.triage_summary}"
+                      </p>
+                    </div>
                     <div className="h-px w-24 bg-gray-100" />
-                    <p className="text-gray-500 leading-relaxed text-lg font-medium">
-                      <span className="font-bold text-gray-400 block mb-2 uppercase text-xs tracking-widest">Reasoning Matrix</span>
-                      {referralData.reasoning}
-                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-4">
+                            <p className="text-gray-500 leading-relaxed text-lg font-medium">
+                            <span className="font-bold text-gray-400 block mb-2 uppercase text-xs tracking-widest">Reasoning Matrix</span>
+                            {referralData.reasoning}
+                            </p>
+                        </div>
+                        
+                        {referralData.extracted_data?.urgency_indicators?.length > 0 && (
+                            <div className="bg-gray-50/50 rounded-[32px] p-8 border border-gray-100 space-y-4">
+                                <span className="font-bold text-gray-400 block uppercase text-xs tracking-widest">Clinical Urgency Factors</span>
+                                <div className="space-y-3">
+                                    {referralData.extracted_data.urgency_indicators.map((indicator: string, i: number) => (
+                                        <div key={i} className="flex gap-3 text-sm font-bold text-gray-700 italic">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 shrink-0" />
+                                            {indicator}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {referralData.extracted_data?.risk_factors?.length > 0 && (
+                            <div className="bg-orange-50/30 rounded-[32px] p-8 border border-orange-100/50 space-y-4">
+                                <span className="font-bold text-orange-400 block uppercase text-xs tracking-widest">Risk Factors</span>
+                                <div className="space-y-3">
+                                    {referralData.extracted_data.risk_factors.map((risk: string, i: number) => (
+                                        <div key={i} className="flex gap-3 text-sm font-bold text-orange-700 italic">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-2 shrink-0" />
+                                            {risk}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                   </div>
                 </div>
  
@@ -338,20 +407,22 @@ export default function TriagePage() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center py-4 px-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Identified Subject</span>
-                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">{referralData.extracted_data?.patient_name}</span>
+                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">{referralData.extracted_data?.patient_name || "Unknown Patient"}</span>
                         </div>
                         <div className="flex justify-between items-center py-4 px-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Subject Age</span>
-                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">{calculateAge(referralData.extracted_data?.patient_dob)} yrs</span>
+                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">
+                            {referralData.extracted_data?.patient_dob ? `${calculateAge(referralData.extracted_data?.patient_dob)} yrs` : "Not Identified"}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center py-4 px-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Referring Dr.</span>
-                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">{referralData.extracted_data?.referring_physician ?? "Unknown"}</span>
+                          <span className="text-[15px] font-black text-gray-900 italic tracking-tight">{referralData.extracted_data?.referring_physician || "Not Specified"}</span>
                         </div>
                         <div className="flex justify-between items-center py-4 px-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
                           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Primary Complaint</span>
                           <span className="text-[15px] font-black text-gray-900 italic tracking-tight text-right shrink-0 ml-4 max-w-[200px] truncate" title={referralData.extracted_data?.primary_complaint}>
-                            {referralData.extracted_data?.primary_complaint ?? "-"}
+                            {referralData.extracted_data?.primary_complaint || "None Listed"}
                           </span>
                         </div>
                         <button className="w-full flex justify-between items-center py-5 px-8 bg-gray-900 text-white rounded-3xl shadow-2xl hover:bg-black transition-all group scale-100 active:scale-95 mt-4"
