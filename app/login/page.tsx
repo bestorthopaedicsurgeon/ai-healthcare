@@ -1,10 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
 
 export default function LoginPage() {
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || "Failed to login. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen flex bg-[#FCFAF8]">
       {/* Left panel — brand */}
@@ -62,18 +83,27 @@ export default function LoginPage() {
           {/* Email form */}
           <form
             className="flex flex-col gap-4"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={handleSubmit}
           >
+            {error && (
+              <div className="bg-red-50 text-red-500 text-sm px-4 py-3 rounded-xl border border-red-100">
+                {error}
+              </div>
+            )}
             <input
               type="email"
               placeholder="Work email"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
             />
             <input
               type="password"
               placeholder="Password"
               required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
             />
 
@@ -97,13 +127,20 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="h-11 w-full rounded-xl bg-[#28030f] text-white text-sm font-medium hover:bg-[#28030f]/90 transition-colors flex items-center justify-center gap-2 group"
+              disabled={isLoading}
+              className="h-11 w-full rounded-xl bg-[#28030f] text-white text-sm font-medium hover:bg-[#28030f]/90 transition-colors flex items-center justify-center gap-2 group disabled:opacity-70"
             >
-              Sign In
-              <ArrowRight
-                size={15}
-                className="group-hover:translate-x-0.5 transition-transform"
-              />
+              {isLoading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight
+                    size={15}
+                    className="group-hover:translate-x-0.5 transition-transform"
+                  />
+                </>
+              )}
             </button>
           </form>
 

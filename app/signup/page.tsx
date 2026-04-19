@@ -1,10 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { useState } from "react";
 
 export default function SignupPage() {
+  const { register } = useAuth();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [specialty, setSpecialty] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await register({
+        full_name: `${firstName} ${lastName}`.trim(),
+        email,
+        password,
+        specialty: specialty || "General Surgery"
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to create account.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen flex bg-[#FCFAF8]">
       {/* Left panel — brand */}
@@ -59,19 +88,28 @@ export default function SignupPage() {
           {/* Email form */}
           <form
             className="flex flex-col gap-4"
-            onSubmit={(e) => e.preventDefault()}
+            onSubmit={handleSubmit}
           >
+            {error && (
+              <div className="bg-red-50 text-red-500 text-sm px-4 py-3 rounded-xl border border-red-100">
+                {error}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="text"
                 placeholder="First name"
                 required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
               />
               <input
                 type="text"
                 placeholder="Last name"
                 required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
               />
             </div>
@@ -79,12 +117,24 @@ export default function SignupPage() {
               type="email"
               placeholder="Work email"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
             />
             <input
               type="password"
               placeholder="Create a password"
               required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+            />
+            <input
+              type="text"
+              placeholder="Specialty (e.g. General Surgery)"
+              required
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
               className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
             />
 
@@ -102,13 +152,20 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              className="h-11 w-full rounded-xl bg-[#fdf444] text-[#28030f] text-sm font-medium hover:bg-[#fbf582] transition-colors flex items-center justify-center gap-2 group shadow-sm"
+              disabled={isLoading}
+              className="h-11 w-full rounded-xl bg-[#fdf444] text-[#28030f] text-sm font-medium hover:bg-[#fbf582] transition-colors flex items-center justify-center gap-2 group shadow-sm disabled:opacity-70"
             >
-              Create Account
-              <ArrowRight
-                size={15}
-                className="group-hover:translate-x-0.5 transition-transform"
-              />
+              {isLoading ? (
+                <Loader2 size={18} className="animate-spin text-[#28030f]" />
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight
+                    size={15}
+                    className="group-hover:translate-x-0.5 transition-transform"
+                  />
+                </>
+              )}
             </button>
           </form>
 
