@@ -27,6 +27,14 @@ export default function TriagePage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoadingReferral, setIsLoadingReferral] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadMode, setUploadMode] = useState<'document' | 'raw'>('document');
+  const [manualFormData, setManualFormData] = useState({
+    patient_name: "Rabi ahmed",
+    patient_dob: "1990-01-01",
+    patient_phone: "+61412345678",
+    source_type: "email",
+    raw_content: "Patient presents with severe left knee pain for 6 months. Requesting orthopaedic consult."
+  });
 
   useEffect(() => {
     if (!activeSession?.referral_id) {
@@ -81,6 +89,27 @@ export default function TriagePage() {
     } catch (err) {
       console.error("Document viewing error:", err);
       alert("Failed to load secure document.");
+    }
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUploading(true);
+    try {
+      const response = await apiFetch(API_CONSTANTS.TRIAGE_REFERRALS_SUBMIT, {
+        method: "POST",
+        body: JSON.stringify(manualFormData)
+      });
+      if (!response.ok) throw new Error("Manual submit failed");
+
+      const data = await response.json();
+      setReferralData(data);
+      setIsExpanded(true);
+    } catch (err) {
+      console.error("Submit error:", err);
+      alert("Failed to triage manual data. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -139,9 +168,9 @@ export default function TriagePage() {
   };
 
   const triageCategories = [
-    { id: 'for_surgery', label: 'For Surgery', color: '#e74c3c' },
-    { id: 'possible_surgery', label: 'Possible Surgery', color: '#f39c12' },
-    { id: 'not_for_surgery', label: 'Not For Surgery', color: '#27ae60' }
+    { id: 'urgent', label: 'Urgent', meaning: 'Within days', color: '#e74c3c' },
+    { id: 'semi_urgent', label: 'Semi Urgent', meaning: '1-2 weeks', color: '#f39c12' },
+    { id: 'routine', label: 'Routine', meaning: 'Standard wait', color: '#27ae60' }
   ];
 
   return (
@@ -161,10 +190,10 @@ export default function TriagePage() {
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Referral Triage</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">GP Referral Intake</h2>
                         <p className="text-sm text-gray-500 font-medium">
                            {activePatientId 
-                             ? `Ready to triage a referral for ${activePatient?.full_name}?`
+                             ? `Ready to process a GP referral for ${activePatient?.full_name}?`
                              : "You need an active session to use this clinical tool."}
                         </p>
                     </div>
@@ -203,44 +232,85 @@ export default function TriagePage() {
               >
                 <div className="text-center space-y-4">
                   <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic">Clinical Document Intelligence</h2>
-                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">Patient: {activeSession.patient_name}</p>
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">Triaging Patient Referral</p>
                 </div>
 
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "border-2 border-dashed rounded-[56px] p-24 flex flex-col items-center justify-center gap-10 cursor-pointer transition-all relative overflow-hidden group shadow-premium",
-                    isUploading ? "border-blue-200 bg-blue-50/30" : "border-gray-200 hover:border-accent-primary hover:bg-gray-50/50"
-                  )}
-                >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept=".pdf" 
-                    onChange={handleFileUpload} 
-                  />
-                  
-                  {isUploading ? (
-                    <div className="flex flex-col items-center gap-8">
-                      <div className="w-20 h-20 border-4 border-accent-primary border-t-transparent rounded-full animate-spin shadow-2xl" />
-                      <div className="text-center space-y-2">
-                        <p className="font-black text-gray-900 text-2xl italic tracking-tight">Deciphering Referral...</p>
-                        <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Running OCR and Clinical Analysis</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-24 h-24 rounded-[32px] bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-inner">
-                        <Upload size={44} className="stroke-[2.5]" />
-                      </div>
-                      <div className="text-center space-y-2">
-                        <p className="font-black text-gray-900 text-2xl italic tracking-tight">Ingest Medical Document</p>
-                        <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Support for Referral PDF, Scans, and Imaging Reports</p>
-                      </div>
-                    </>
-                  )}
+                <div className="flex items-center justify-center p-1 bg-gray-100 rounded-full max-w-sm mx-auto">
+                   <button 
+                     onClick={() => setUploadMode('document')}
+                     className={cn("flex-1 py-3 px-6 rounded-full text-sm font-bold transition-all", uploadMode === 'document' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                   >
+                     Upload PDF
+                   </button>
+                   <button 
+                     onClick={() => setUploadMode('raw')}
+                     className={cn("flex-1 py-3 px-6 rounded-full text-sm font-bold transition-all", uploadMode === 'raw' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                   >
+                     Raw Data Entry
+                   </button>
                 </div>
+
+                {uploadMode === 'document' ? (
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-[56px] p-24 flex flex-col items-center justify-center gap-10 cursor-pointer transition-all relative overflow-hidden group shadow-premium",
+                        isUploading ? "border-blue-200 bg-blue-50/30" : "border-gray-200 hover:border-accent-primary hover:bg-gray-50/50"
+                      )}
+                    >
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept=".pdf" 
+                        onChange={handleFileUpload} 
+                      />
+                      
+                      {isUploading ? (
+                        <div className="flex flex-col items-center gap-8">
+                          <div className="w-20 h-20 border-4 border-accent-primary border-t-transparent rounded-full animate-spin shadow-2xl" />
+                          <div className="text-center space-y-2">
+                            <p className="font-black text-gray-900 text-2xl italic tracking-tight">Deciphering Referral...</p>
+                            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Running OCR and Clinical Analysis</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-24 h-24 rounded-[32px] bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                            <Upload size={44} className="stroke-[2.5]" />
+                          </div>
+                          <div className="text-center space-y-2">
+                            <p className="font-black text-gray-900 text-2xl italic tracking-tight">Ingest Medical Document</p>
+                            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Support for Referral PDF, Scans, and Imaging Reports</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                ) : (
+                    <form onSubmit={handleManualSubmit} className="bg-white border border-gray-100 rounded-[40px] p-10 shadow-premium space-y-6">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Patient Name</label>
+                                <input required className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-gray-700 outline-none focus:ring-4 focus:ring-accent-primary/10 transition-all" value={manualFormData.patient_name} onChange={e => setManualFormData({...manualFormData, patient_name: e.target.value})} placeholder="Jane Doe" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Date of Birth</label>
+                                <input required type="date" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-gray-700 outline-none focus:ring-4 focus:ring-accent-primary/10 transition-all" value={manualFormData.patient_dob} onChange={e => setManualFormData({...manualFormData, patient_dob: e.target.value})} />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Phone Number</label>
+                                <input required type="tel" className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-bold text-gray-700 outline-none focus:ring-4 focus:ring-accent-primary/10 transition-all" value={manualFormData.patient_phone} onChange={e => setManualFormData({...manualFormData, patient_phone: e.target.value})} placeholder="+61400000000" />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Raw Clinical Data</label>
+                                <textarea required rows={5} className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-5 py-5 text-sm font-medium text-gray-700 outline-none focus:ring-4 focus:ring-accent-primary/10 resize-none transition-all" value={manualFormData.raw_content} onChange={e => setManualFormData({...manualFormData, raw_content: e.target.value})} placeholder="Paste email or text here..." />
+                            </div>
+                        </div>
+                        <Button type="submit" disabled={isUploading} className="w-full h-16 rounded-[24px] font-black text-sm uppercase tracking-widest bg-gray-900 hover:bg-black text-white shadow-xl mt-4">
+                            {isUploading ? "Analyzing Data..." : "Submit Raw Data For Triage"}
+                        </Button>
+                    </form>
+                )}
               </motion.div>
             ) : (
               <motion.div 
@@ -283,7 +353,7 @@ export default function TriagePage() {
                           <div 
                             key={cat.id} 
                             className={cn(
-                              "flex flex-col gap-3 p-5 rounded-2xl border-2 transition-all relative overflow-hidden",
+                              "flex flex-col gap-3 p-5 rounded-2xl border-2 transition-all relative overflow-visible group",
                               isActive ? "bg-opacity-10 border-opacity-100 shadow-xl shadow-black/5 transform scale-105" : "border-gray-100 bg-gray-50 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 cursor-pointer"
                             )}
                             style={{ 
@@ -291,7 +361,7 @@ export default function TriagePage() {
                               backgroundColor: isActive ? `${cat.color}10` : ''
                             }}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 relative z-10">
                                 <div 
                                   className="w-5 h-5 rounded-full border-2 flex items-center justify-center shadow-inner"
                                   style={{ borderColor: isActive ? cat.color : '#e5e7eb' }}
@@ -301,6 +371,11 @@ export default function TriagePage() {
                                 <span className={cn("font-bold text-sm tracking-tight", isActive ? "text-gray-900" : "text-gray-500")}>
                                   {cat.label}
                                 </span>
+                            </div>
+                            
+                            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-2xl flex items-center justify-center">
+                                {cat.meaning}
+                                <div className="absolute -top-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
                             </div>
                           </div>
                         )

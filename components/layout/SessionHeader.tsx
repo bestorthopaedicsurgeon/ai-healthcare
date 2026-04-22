@@ -9,10 +9,10 @@ import { motion } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
 
 const tools = [
-  { id: "scribe", label: "Scribe", icon: Mic2, href: "/scribe", color: "text-blue-500", bg: "bg-blue-50" },
-  { id: "triage", label: "Triage", icon: FileText, href: "/triage", color: "text-emerald-500", bg: "bg-emerald-50" },
-  { id: "chat", label: "AI Chat", icon: MessageSquare, href: "/chat", color: "text-purple-500", bg: "bg-purple-50" },
+  { id: "triage", label: "GP Referral", icon: FileText, href: "/triage", color: "text-emerald-500", bg: "bg-emerald-50" },
   { id: "voice", label: "Voice Agent", icon: Phone, href: "/voice-agent", color: "text-green-500", bg: "bg-green-50" },
+  { id: "scribe", label: "Scribe", icon: Mic2, href: "/scribe", color: "text-blue-500", bg: "bg-blue-50" },
+  { id: "chat", label: "AI Chat", icon: MessageSquare, href: "/chat", color: "text-purple-500", bg: "bg-purple-50" },
 ];
 
 export function SessionHeader() {

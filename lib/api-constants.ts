@@ -13,6 +13,7 @@ export const API_CONSTANTS = {
     
     // Triage
     TRIAGE_REFERRALS_UPLOAD: "/api/v1/triage/referrals/upload",
+    TRIAGE_REFERRALS_SUBMIT: "/api/v1/triage/referrals/submit",
     TRIAGE_REFERRALS_REPORT: "/api/v1/triage/referrals/{referral_id}/report",
 
     // Patients
@@ -24,8 +25,11 @@ export const API_CONSTANTS = {
     // Intake (Voice Agent)
     INTAKE_START: "/api/v1/intake/start",
     INTAKE_WS_URL: "/api/v1/intake/{intake_id}/websocket-url",
+    INTAKE_MESSAGE: "/api/v1/intake/{intake_id}/message",
     INTAKE_RESULT: "/api/v1/intake/{intake_id}/result",
-    INTAKE_COMPLETE: "/api/v1/intake/{intake_id}/complete",
+    INTAKE_COMPLETE: "/api/v1/intake/{intake_id}/complete?conversation_id={conversation_id}",
+    INTAKE_FINALIZE: "/api/v1/intake/{intake_id}/finalize",
+    INTAKE_REPORT: "/api/v1/intake/{intake_id}/report",
     
     // Categorization
     CATEGORIZATION_BY_REFERRAL: "/api/v1/categorization/referral/{referral_id}",
