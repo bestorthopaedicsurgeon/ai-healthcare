@@ -99,7 +99,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                       required
                       type="text"
                       placeholder="e.g. John Smith"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
                       value={formData.full_name}
                       onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                     />
@@ -113,7 +113,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                     <input
                       required
                       type="date"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
                       value={formData.dob}
                       onChange={e => setFormData({ ...formData, dob: e.target.value })}
                     />
@@ -123,7 +123,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Gender</label>
                   <select
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
                     value={formData.gender}
                     onChange={e => setFormData({ ...formData, gender: e.target.value })}
                   >
@@ -141,7 +141,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                       required
                       type="tel"
                       placeholder="+61..."
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
                       value={formData.phone}
                       onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     />
@@ -156,7 +156,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                       required
                       type="email"
                       placeholder="john@email.com"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium"
                       value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })}
                     />
@@ -170,7 +170,7 @@ export function CreatePatientModal({ isOpen, onClose }: CreatePatientModalProps)
                     <textarea
                       rows={2}
                       placeholder="Full residential address"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium resize-none"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all font-medium resize-none"
                       value={formData.address}
                       onChange={e => setFormData({ ...formData, address: e.target.value })}
                     />

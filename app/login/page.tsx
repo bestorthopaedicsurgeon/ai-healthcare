@@ -44,14 +44,14 @@ export default function LoginPage() {
           className="w-full max-w-[360px] flex flex-col gap-6"
         >
           {/* Mobile logo */}
-          <div className="md:hidden flex items-center gap-2 mb-2">
+          <Link href="/" className="md:hidden flex items-center gap-2 mb-2 w-fit hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg bg-[#28030f] flex items-center justify-center">
               <span className="font-bold text-xs text-white">C</span>
             </div>
             <span className="font-semibold text-lg text-[#28030f]">
               Cliniq<span className="text-[#755760]">AI</span>
             </span>
-          </div>
+          </Link>
 
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-[#28030f]">
@@ -210,14 +210,14 @@ function BrandPanel({
 
       {/* Content */}
       <div className="relative z-10 px-12 max-w-md">
-        <div className="flex items-center gap-2.5 mb-10">
+        <Link href="/" className="flex items-center gap-2.5 mb-10 w-fit cursor-pointer hover:opacity-80 transition-opacity">
           <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
             <span className="font-bold text-sm text-white">C</span>
           </div>
           <span className="font-semibold text-lg text-white">
             Cliniq<span className="text-white/40">AI</span>
           </span>
-        </div>
+        </Link>
 
         <h2 className="text-3xl font-bold text-white leading-tight mb-4">
           {heading}
