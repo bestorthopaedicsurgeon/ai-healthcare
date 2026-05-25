@@ -19,7 +19,8 @@ import { Button } from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { CreatePatientModal } from "@/components/modals/CreatePatientModal";
+// import { CreatePatientModal } from "@/components/modals/CreatePatientModal";
+import { BulkUploadWizard } from "@/components/modals/BulkUploadWizard";
 
 export default function DashboardPage() {
   const { patients, sessions, setActivePatientId, setActiveSessionId, openSessionModal, isLoading } = usePatient();
@@ -249,8 +250,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-
-      <CreatePatientModal 
+      {/* <CreatePatientModal 
+        isOpen={isPatientModalOpen} 
+        onClose={() => setIsPatientModalOpen(false)} 
+      /> */}
+      
+      <BulkUploadWizard
         isOpen={isPatientModalOpen} 
         onClose={() => setIsPatientModalOpen(false)} 
       />

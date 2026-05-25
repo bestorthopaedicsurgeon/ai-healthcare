@@ -18,6 +18,8 @@ export const API_CONSTANTS = {
 
     // Patients
     PATIENTS_BASE: "/api/v1/patients",
+    BULK_UPLOAD: "/api/v1/bulk/upload",
+    WS_EVENTS: "wss://healthcare-ai-backend-723h.onrender.com/api/v1/ws/events",
     
     // Sessions
     SESSIONS_BASE: "/api/v1/sessions",

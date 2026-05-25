@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { API_CONSTANTS } from "@/lib/api-constants";
+import { toast } from "react-hot-toast";
 
 export interface Patient {
   id: string;
@@ -55,6 +56,7 @@ interface PatientContextType {
   closeSessionModal: () => void;
   isSessionModalOpen: boolean;
   sessionRedirectPath: string | null;
+  uploadBulkPatients: (formData: FormData) => Promise<any>;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -145,6 +147,18 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
+  const uploadBulkPatients = async (formData: FormData) => {
+    const res = await apiFetch(API_CONSTANTS.BULK_UPLOAD, {
+        method: "POST",
+        body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to upload bulk patients");
+    await refreshPatients();
+    await refreshSessions();
+    return data;
+  };
+
   const setScribeStatus = (patientId: string, status: 'idle' | 'active' | 'finished') => {
     setPatientSessions(prev => ({ ...prev, [patientId]: status }));
   };
@@ -154,6 +168,96 @@ export function PatientProvider({ children }: { children: ReactNode }) {
         refreshPatients();
         refreshSessions();
     }
+  }, [token, refreshPatients, refreshSessions]);
+
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectWebSocket = () => {
+        if (!token) return;
+        
+        // Ensure proper websocket protocol
+        const wsUrl = `${API_CONSTANTS.WS_EVENTS}?token=${token}`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected for realtime events');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('WS Event:', data);
+                
+                // Handle different event types
+                switch (data.type) {
+                    case 'ws.connected':
+                        // Initial connection confirmed
+                        break;
+                    case 'intake.scheduled':
+                        toast.success(`Intake scheduled`);
+                        refreshPatients();
+                        refreshSessions();
+                        break;
+                    case 'intake.call_started':
+                        toast(`Calling patient...`, { icon: '📞' });
+                        refreshPatients();
+                        refreshSessions();
+                        break;
+                    case 'intake.completed':
+                        toast.success(`Call completed`);
+                        refreshPatients();
+                        refreshSessions();
+                        break;
+                    case 'intake.failed':
+                        toast.error(`Call failed`);
+                        refreshPatients();
+                        refreshSessions();
+                        break;
+                    case 'categorization.completed':
+                        toast.success(`Categorization ready`);
+                        refreshPatients();
+                        refreshSessions();
+                        break;
+                    default:
+                        // If there are other events like intake.status we can trigger a silent refresh
+                        if (data.type?.startsWith('intake.') || data.type?.startsWith('categorization.')) {
+                            refreshPatients();
+                            refreshSessions();
+                        }
+                        break;
+                }
+            } catch (err) {
+                console.error('Error parsing WS message:', err);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            // Try to reconnect if we still have a token
+            if (token) {
+                reconnectTimer = setTimeout(connectWebSocket, 5000);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            ws?.close();
+        };
+    };
+
+    if (token) {
+        connectWebSocket();
+    }
+
+    return () => {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        if (ws) {
+            ws.onclose = null;
+            ws.close();
+        }
+    };
   }, [token, refreshPatients, refreshSessions]);
 
   const getSessionsForPatient = useCallback((name: string) => {
@@ -183,7 +287,8 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       openSessionModal,
       closeSessionModal,
       isSessionModalOpen,
-      sessionRedirectPath
+      sessionRedirectPath,
+      uploadBulkPatients
     }}>
       {children}
     </PatientContext.Provider>
