@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePatient, Patient, Session } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
-import { CreatePatientModal } from "../modals/CreatePatientModal";
+import { BulkUploadWizard } from "../modals/BulkUploadWizard";
 import { CreateSessionModal } from "../modals/CreateSessionModal";
 
 export function Sidebar() {
@@ -301,7 +301,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <CreatePatientModal 
+      <BulkUploadWizard 
         isOpen={isPatientModalOpen} 
         onClose={() => setIsPatientModalOpen(false)} 
       />

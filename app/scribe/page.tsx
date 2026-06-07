@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Play, Mic2, Pause, Square, Download, Activity, CheckCircle2, FileText } from "lucide-react";
 import { usePatient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
@@ -19,7 +19,8 @@ export default function ScribePage() {
     activeSessionId, 
     activePatient, 
     activePatientId, 
-    openSessionModal 
+    openSessionModal,
+    sessionData
   } = usePatient();
   const router = useRouter();
   const { apiFetch } = useAuth();
@@ -36,6 +37,18 @@ export default function ScribePage() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const sessionStatus = activeSessionId ? (patientSessions[activeSessionId] || 'idle') : 'none';
+
+  // Synchronize consultation data from API if already completed
+  useEffect(() => {
+    if (sessionData?.consultation) {
+      setSessionResults(sessionData.consultation);
+      if (activeSessionId && patientSessions[activeSessionId] !== 'finished') {
+        setScribeStatus(activeSessionId, 'finished');
+      }
+    } else {
+      setSessionResults(null);
+    }
+  }, [sessionData, activeSessionId, setScribeStatus, patientSessions]);
 
   const handleViewDocument = async (url: string) => {
     if (!url) return;
@@ -233,6 +246,28 @@ export default function ScribePage() {
                   <p className="text-gray-500 font-medium">For {activeSession.patient_name}</p>
                   <p className="text-xs text-gray-400">Record your consultation. The AI will generate structured clinical notes automatically.</p>
                 </div>
+
+                {sessionData?.patient_type === "followup" && sessionData?.previous_scribe && (
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 text-left space-y-3 relative overflow-hidden">
+                    <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider">Previous Scribe Summary</h3>
+                    <p className="text-sm text-blue-700 leading-relaxed italic">
+                      {sessionData.previous_scribe.summary ? (
+                        `"${sessionData.previous_scribe.summary}"`
+                      ) : (
+                        "No text summary available."
+                      )}
+                    </p>
+                    {sessionData.previous_scribe.file_url && (
+                      <button 
+                        type="button"
+                        onClick={() => handleViewDocument(sessionData.previous_scribe.file_url)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold transition-all active:scale-[0.98]"
+                      >
+                        <FileText size={14} /> View Previous Scribe Document
+                      </button>
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={startRecording}
                   className="w-full py-4 bg-accent-primary hover:bg-accent-primary/90 text-white rounded-2xl font-bold shadow-lg shadow-accent-primary/30 transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3"
@@ -310,7 +345,7 @@ export default function ScribePage() {
                     <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">{activeSession.patient_name} • Consultation Data • {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    {sessionResults?.status !== 'approved' && (
+                    {sessionResults?.status !== 'approved' && !sessionResults?.physician_approved && (
                       <Button onClick={handleApprove} disabled={isApproving} className="gap-2 bg-emerald-600 hover:bg-emerald-700 h-12 px-6 rounded-xl font-bold text-white shadow-xl shadow-emerald-600/20 active:scale-95 transition-all">
                          <CheckCircle2 size={18} />{isApproving ? "Approving..." : "Approve Notes"}
                       </Button>
@@ -319,7 +354,7 @@ export default function ScribePage() {
                     <Button variant="secondary" className="gap-2 h-12 px-6 rounded-xl font-black bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100 shadow-xl shadow-purple-500/10" onClick={() => handleViewDocument(`/api/v1/scribe/consultations/${sessionResults?.consultation_id}/letter`)}>
                       <FileText size={18} />GP Letter
                     </Button>
-                    <Button className="gap-2 bg-gray-900 hover:bg-black h-12 px-8 rounded-xl font-black shadow-2xl" onClick={() => handleViewDocument(sessionResults?.report_pdf_url)}>
+                    <Button className="gap-2 bg-gray-900 hover:bg-black h-12 px-8 rounded-xl font-black shadow-2xl" onClick={() => handleViewDocument(sessionResults?.report_pdf_url || `/api/v1/scribe/consultations/${sessionResults?.consultation_id}/report`)}>
                       <Download size={18} />Archival PDF
                     </Button>
                   </div>

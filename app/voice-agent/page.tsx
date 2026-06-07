@@ -8,44 +8,100 @@ import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_CONSTANTS } from "@/lib/api-constants";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+
+const renderClinicalItem = (item: any) => {
+  if (!item) return "";
+  if (typeof item === 'string') return item;
+  if (typeof item === 'object') {
+    // If it's a medication object
+    if ('name' in item) {
+      const parts = [
+        item.name,
+        item.dosage ? `(${item.dosage})` : '',
+        item.frequency ? `- ${item.frequency}` : ''
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+    // If it's an allergy object (e.g. { allergy: "peanuts", severity: "severe" })
+    if ('allergy' in item || 'allergen' in item) {
+      const name = item.allergy || item.allergen;
+      const severity = item.severity ? `(${item.severity})` : '';
+      return `${name} ${severity}`.trim();
+    }
+    // If it's a surgery object (e.g. { procedure: "appendix removal", date: "2010" })
+    if ('procedure' in item || 'surgery' in item) {
+      const name = item.procedure || item.surgery;
+      const date = item.date ? `(${item.date})` : '';
+      return `${name} ${date}`.trim();
+    }
+    // If it's a condition object (e.g. { condition: "asthma", onset: "childhood" })
+    if ('condition' in item) {
+      const name = item.condition;
+      const onset = item.onset ? `(${item.onset})` : '';
+      return `${name} ${onset}`.trim();
+    }
+    // Generic fallback - join all string values of the object
+    return Object.values(item).filter(val => typeof val === 'string' && val !== '').join(' ');
+  }
+  return String(item);
+};
 
 export default function VoiceAgentPage() {
   const { activeSession, sessionData, isSessionDataLoading, refreshSessionData } = usePatient();
   const { apiFetch } = useAuth();
+  const router = useRouter();
   
   const [view, setView] = useState<'setup' | 'active' | 'results' | 'followup'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [targetPhone, setTargetPhone] = useState("");
+  const [isPhoneEdited, setIsPhoneEdited] = useState(false);
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'completed'>('idle');
   const [intakeId, setIntakeId] = useState<string | null>(null);
   const [pollingStatus, setPollingStatus] = useState<any>(null);
   const [resultsTab, setResultsTab] = useState<'clinical' | 'transcript'>('clinical');
 
+  // Reset phone edit flag when active session changes
   useEffect(() => {
     if (activeSession) {
-      setTargetPhone(activeSession.patient_phone || "");
+      setIsPhoneEdited(false);
       setCallStatus('idle');
       setView('setup');
       setIntakeId(activeSession.intake_id || sessionData?.intake?.intake_id || null);
     }
   }, [activeSession]);
 
-  // Detect follow-up patient (no intake and no triage)
+  // Autofetch phone number from triage extracted data or session data, respecting manual overrides
   useEffect(() => {
-    if (sessionData && !sessionData.intake && !sessionData.triage) {
+    if (activeSession && !isPhoneEdited) {
+      const extractedPhone = sessionData?.triage?.extracted_data?.patient_phone;
+      const sessionPhone = activeSession.patient_phone;
+      setTargetPhone(extractedPhone || sessionPhone || "");
+    }
+  }, [activeSession, sessionData, isPhoneEdited]);
+
+  // Detect follow-up patient (explicit patient_type from API)
+  useEffect(() => {
+    if (sessionData?.patient_type === 'followup') {
       setView('followup');
     }
   }, [sessionData]);
 
   useEffect(() => {
-    if (sessionData?.intake) {
+    if (sessionData?.patient_type === 'followup') {
+      return;
+    }
+    if (sessionData?.intake && (sessionData.intake.call_transcript || sessionData.intake.clinical_data)) {
       setCallStatus('completed');
       setView('results');
+    } else if (sessionData?.intake && view !== 'active') {
+      setCallStatus('idle');
+      setView('setup');
     }
-    if (sessionData?.intake?.intake_id) {
+    if (sessionData?.intake?.intake_id && view !== 'active') {
       setIntakeId(sessionData.intake.intake_id);
     }
-  }, [sessionData]);
+  }, [sessionData, view]);
 
   // Status Polling Effect
   useEffect(() => {
@@ -185,13 +241,22 @@ export default function VoiceAgentPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto"
           >
-            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500">
-              <FileText size={40} />
+            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500 shadow-inner">
+              <Phone size={40} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Follow-up Patient</h2>
-              <p className="text-sm text-gray-500 mt-2">No intake or triage data required for this patient.</p>
+              <h2 className="text-2xl font-black text-gray-900 italic tracking-tighter">Voice Intake Bypassed</h2>
+              <p className="text-sm font-medium text-gray-500 mt-3 leading-relaxed">
+                No voice agent intake call is required for this follow-up patient session.
+              </p>
             </div>
+            <Button 
+              onClick={() => router.push("/scribe")}
+              variant="primary"
+              className="rounded-2xl px-6 h-12 bg-gray-900 hover:bg-black font-black uppercase tracking-widest text-xs shadow-2xl mt-4"
+            >
+              Go to Scribe Workspace
+            </Button>
           </motion.div>
         ) : !activeSession.referral_id ? (
           <motion.div
@@ -231,7 +296,10 @@ export default function VoiceAgentPage() {
                               className="bg-transparent border-none outline-none text-sm font-bold w-full text-gray-700" 
                               placeholder="+1234567890"
                               value={targetPhone}
-                              onChange={(e) => setTargetPhone(e.target.value)}
+                              onChange={(e) => {
+                                  setTargetPhone(e.target.value);
+                                  setIsPhoneEdited(true);
+                              }}
                           />
                       </div>
                   </div>
@@ -383,7 +451,7 @@ export default function VoiceAgentPage() {
                                       <div className="space-y-2">
                                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Past Conditions</span>
                                           <div className="flex flex-wrap gap-2">
-                                              {clinicalData?.past_conditions?.map((c: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{c}</span>) || "None reported"}
+                                              {clinicalData?.past_conditions?.map((c: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(c)}</span>) || "None reported"}
                                               {(!clinicalData?.past_conditions || clinicalData.past_conditions.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
                                           </div>
                                       </div>
@@ -391,7 +459,7 @@ export default function VoiceAgentPage() {
                                       <div className="space-y-2">
                                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Current Medications</span>
                                           <div className="flex flex-wrap gap-2">
-                                              {clinicalData?.current_medications?.map((m: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{m}</span>) || "None reported"}
+                                              {clinicalData?.current_medications?.map((m: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(m)}</span>) || "None reported"}
                                               {(!clinicalData?.current_medications || clinicalData.current_medications.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
                                           </div>
                                       </div>
@@ -399,7 +467,7 @@ export default function VoiceAgentPage() {
                                       <div className="space-y-2">
                                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Allergies</span>
                                           <div className="flex flex-wrap gap-2">
-                                              {clinicalData?.allergies?.map((a: string, idx: number) => <span key={idx} className="bg-red-50 text-red-600 border border-red-100 text-xs font-bold px-3 py-1.5 rounded-xl">{a}</span>) || "None reported"}
+                                              {clinicalData?.allergies?.map((a: any, idx: number) => <span key={idx} className="bg-red-50 text-red-600 border border-red-100 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(a)}</span>) || "None reported"}
                                               {(!clinicalData?.allergies || clinicalData.allergies.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
                                           </div>
                                       </div>
@@ -407,7 +475,7 @@ export default function VoiceAgentPage() {
                                       <div className="space-y-2">
                                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Surgical History</span>
                                           <div className="flex flex-wrap gap-2">
-                                              {clinicalData?.surgical_history?.map((s: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{s}</span>) || "None reported"}
+                                              {clinicalData?.surgical_history?.map((s: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(s)}</span>) || "None reported"}
                                               {(!clinicalData?.surgical_history || clinicalData.surgical_history.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
                                           </div>
                                       </div>

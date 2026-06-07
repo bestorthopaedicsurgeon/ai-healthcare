@@ -204,22 +204,69 @@ export default function TriagePage() {
                         </div>
                     )}
                 </motion.div>
-            ) : (sessionData && !sessionData.triage && !sessionData.intake) ? (
-  <motion.div
-    key="followup"
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto"
-  >
-    <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500">
-      <FileText size={40} />
-    </div>
-    <div>
-      <h2 className="text-xl font-bold text-gray-900">Follow-up Patient</h2>
-      <p className="text-sm text-gray-500 mt-2">No intake or triage data required for this patient.</p>
-    </div>
-  </motion.div>
-) : !referralData ? (
+            ) : sessionData?.patient_type === "followup" ? (
+              <motion.div
+                key="previous-scribe-context"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="max-w-4xl mx-auto mt-12 space-y-12"
+              >
+                <div className="text-center space-y-4">
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tighter italic">Previous Consultation Context</h2>
+                  <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">Follow-up Patient History</p>
+                </div>
+
+                <div className="bg-white border border-gray-100 rounded-[48px] p-12 shadow-premium relative overflow-hidden group hover:shadow-2xl transition-all">
+                  <div className="absolute top-0 right-0 p-10 opacity-[0.03] text-blue-500 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                    <FileText size={160} />
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-4">
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <FileText size={14} />
+                    </div>
+                    Scribe Summary from Previous Session
+                  </div>
+                  
+                  <div className="space-y-8 relative z-10">
+                    <div className="relative">
+                      <div className="absolute -left-4 top-0 bottom-0 w-1 bg-blue-100 rounded-full" />
+                      <p className="text-gray-800 leading-relaxed text-xl font-medium italic pl-4">
+                        {sessionData?.previous_scribe?.summary ? (
+                          `"${sessionData.previous_scribe.summary}"`
+                        ) : (
+                          "No text summary is available for this previous session's scribe. You can examine the source document below."
+                        )}
+                      </p>
+                    </div>
+                    
+                    {sessionData?.previous_scribe?.file_url && (
+                      <div className="pt-4">
+                        <button 
+                          type="button"
+                          className="flex justify-between items-center py-5 px-8 bg-gray-900 text-white rounded-3xl shadow-2xl hover:bg-black transition-all group scale-100 active:scale-95"
+                          onClick={() => handleViewDocument(sessionData.previous_scribe.file_url)}
+                        >
+                          <span className="text-sm font-black uppercase tracking-[0.2em] mr-4">Examine Previous Scribe Document</span>
+                          <ChevronRight size={20} className="group-hover:translate-x-2 transition-transform stroke-[3]" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-center pt-4">
+                  <Button 
+                    onClick={() => router.push("/scribe")} 
+                    variant="primary" 
+                    className="rounded-2xl h-14 px-8 font-bold shadow-xl shadow-accent-primary/20 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Activity size={18} />
+                    Proceed to Scribe for Current Consultation
+                  </Button>
+                </div>
+              </motion.div>
+            ) : !referralData ? (
               <motion.div 
                 key="upload-ui"
                 initial={{ opacity: 0, y: 20 }}

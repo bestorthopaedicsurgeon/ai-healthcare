@@ -18,9 +18,19 @@ const tools = [
 export function SessionHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeSession, openSessionModal } = usePatient();
+  const { activeSession, openSessionModal, sessionData } = usePatient();
 
   const isDashboard = pathname === "/dashboard";
+
+  const isFollowup = sessionData?.patient_type === "followup";
+  const displayedTools = tools
+    .map(t => {
+      if (t.id === "triage" && isFollowup) {
+        return { ...t, label: "Previous Scribe" };
+      }
+      return t;
+    })
+    .filter(t => !(t.id === "voice" && isFollowup));
 
   if (!activeSession && !isDashboard) return (
     <header className="h-16 border-b border-gray-100 bg-white flex items-center px-8 shrink-0">
@@ -49,8 +59,13 @@ export function SessionHeader() {
                 {activeSession.patient_name.charAt(0)}
                 </div>
                 <div className="flex flex-col">
-                    <h1 className="text-sm font-bold text-gray-900 leading-tight">
+                    <h1 className="text-sm font-bold text-gray-900 leading-tight flex items-center gap-2">
                         {activeSession.patient_name}
+                        {isFollowup && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[9px] font-black uppercase tracking-widest leading-none shrink-0">
+                            Follow-up
+                          </span>
+                        )}
                     </h1>
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <Clock size={10} className="text-gray-400" />
@@ -67,7 +82,7 @@ export function SessionHeader() {
                 <ChevronRight size={14} className="text-gray-300" />
                 <div className="px-3 py-1 bg-gray-50 rounded-lg border border-gray-100">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                    {tools.find(t => pathname.startsWith(t.href))?.label || "Workspace"}
+                    {displayedTools.find(t => pathname.startsWith(t.href))?.label || "Workspace"}
                     </span>
                 </div>
             </>
@@ -76,7 +91,7 @@ export function SessionHeader() {
 
         {/* Global Tools Navigation (TABS) - Intercepts if no session */}
         <nav className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-xl border border-gray-100 shadow-sm">
-          {tools.map((tool) => {
+          {displayedTools.map((tool) => {
             const isActive = pathname.startsWith(tool.href);
 
             return (

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Mic2, Phone, MessageSquare, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { usePatient } from "@/context/PatientContext";
 
 const modules = [
   { label: "Triage", icon: FileSpreadsheet, href: "/triage", color: "text-emerald-500", bg: "bg-emerald-50" },
@@ -16,10 +17,21 @@ const modules = [
 
 export function ModuleNavigator() {
   const pathname = usePathname();
+  const { sessionData } = usePatient();
+
+  const isFollowup = sessionData?.patient_type === "followup";
+  const displayedModules = modules
+    .map((mod) => {
+      if (mod.href === "/triage" && isFollowup) {
+        return { ...mod, label: "Previous Scribe" };
+      }
+      return mod;
+    })
+    .filter((mod) => !(mod.href === "/voice-agent" && isFollowup));
 
   return (
     <div className="flex items-center gap-1.5 p-1.5 bg-sidebar-bg/5 rounded-[20px] border border-gray-100 shadow-premium glass-premium relative z-10">
-      {modules.map((mod) => {
+      {displayedModules.map((mod) => {
         const isActive = pathname.startsWith(mod.href);
         return (
           <Link
