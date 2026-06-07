@@ -57,6 +57,9 @@ interface PatientContextType {
   isSessionModalOpen: boolean;
   sessionRedirectPath: string | null;
   uploadBulkPatients: (formData: FormData) => Promise<any>;
+  sessionData: any | null;
+  isSessionDataLoading: boolean;
+  refreshSessionData: () => Promise<void>;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -67,12 +70,21 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activePatientId, setActivePatientId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  const handleSetActivePatientId = useCallback((id: string | null) => {
+    setActivePatientId(id);
+    setActiveSessionId(null);
+    setSessionData(null);
+  }, []);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [patientSessions, setPatientSessions] = useState<Record<string, 'idle' | 'active' | 'finished'>>({});
   const [isLoading, setIsLoading] = useState(true);
   
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
   const [sessionRedirectPath, setSessionRedirectPath] = useState<string | null>(null);
+const [sessionData, setSessionData] = useState<any | null>(null);
+  const [sessionDataCache, setSessionDataCache] = useState<Record<string, any>>({});
+  const [isSessionDataLoading, setIsSessionDataLoading] = useState(false);
 
   const activePatient = patients.find(p => p.id === activePatientId) || null;
   const activeSession = sessions.find(s => s.session_id === activeSessionId) || null;
@@ -163,6 +175,44 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setPatientSessions(prev => ({ ...prev, [patientId]: status }));
   };
 
+  const refreshSessionData = useCallback(async () => {
+    if (!token || !activeSessionId) {
+      setSessionData(null);
+      return;
+    }
+    setIsSessionDataLoading(true);
+    setSessionData(null); // Clear previous data so we don't display it while loading
+    try {
+    // Use cached data if available
+    if (sessionDataCache[activeSessionId]) {
+      setSessionData(sessionDataCache[activeSessionId]);
+      setIsSessionDataLoading(false);
+      return;
+    }
+    // Fetch from API if not cached
+    const res = await apiFetch(`/api/v1/sessions/${activeSessionId}/data`);
+    if (res.ok) {
+      const data = await res.json();
+      setSessionData(data);
+      // Store in cache
+      setSessionDataCache(prev => ({ ...prev, [activeSessionId]: data }));
+    }
+    } catch (err) {
+      console.error("Failed to fetch session data", err);
+    } finally {
+      setIsSessionDataLoading(false);
+    }
+  }, [apiFetch, token, activeSessionId]);
+
+  // Auto-fetch session data when active session changes
+  useEffect(() => {
+    if (activeSessionId && token) {
+      refreshSessionData();
+    } else {
+      setSessionData(null);
+    }
+  }, [activeSessionId, token, refreshSessionData]);
+
   useEffect(() => {
     if (token) {
         refreshPatients();
@@ -199,32 +249,38 @@ export function PatientProvider({ children }: { children: ReactNode }) {
                         toast.success(`Intake scheduled`);
                         refreshPatients();
                         refreshSessions();
+                        refreshSessionData();
                         break;
                     case 'intake.call_started':
                         toast(`Calling patient...`, { icon: '📞' });
                         refreshPatients();
                         refreshSessions();
+                        refreshSessionData();
                         break;
                     case 'intake.completed':
                         toast.success(`Call completed`);
                         refreshPatients();
                         refreshSessions();
+                        refreshSessionData();
                         break;
                     case 'intake.failed':
                         toast.error(`Call failed`);
                         refreshPatients();
                         refreshSessions();
+                        refreshSessionData();
                         break;
                     case 'categorization.completed':
                         toast.success(`Categorization ready`);
                         refreshPatients();
                         refreshSessions();
+                        refreshSessionData();
                         break;
                     default:
                         // If there are other events like intake.status we can trigger a silent refresh
                         if (data.type?.startsWith('intake.') || data.type?.startsWith('categorization.')) {
                             refreshPatients();
                             refreshSessions();
+                            refreshSessionData();
                         }
                         break;
                 }
@@ -258,7 +314,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
             ws.close();
         }
     };
-  }, [token, refreshPatients, refreshSessions]);
+  }, [token, refreshPatients, refreshSessions, refreshSessionData]);
 
   const getSessionsForPatient = useCallback((name: string) => {
     return sessions.filter(s => s.patient_name === name);
@@ -270,7 +326,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       sessions,
       activePatientId, 
       activePatient, 
-      setActivePatientId,
+      setActivePatientId: handleSetActivePatientId,
       activeSessionId,
       activeSession,
       setActiveSessionId,
@@ -288,7 +344,10 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       closeSessionModal,
       isSessionModalOpen,
       sessionRedirectPath,
-      uploadBulkPatients
+      uploadBulkPatients,
+      sessionData,
+      isSessionDataLoading,
+      refreshSessionData
     }}>
       {children}
     </PatientContext.Provider>

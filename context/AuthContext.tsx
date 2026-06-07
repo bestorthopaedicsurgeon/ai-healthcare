@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { API_CONSTANTS } from "@/lib/api-constants";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
-  const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const apiFetch = useCallback(async (url: string, options: RequestInit = {}) => {
     const currentToken = localStorage.getItem("access_token");
     
     // Create headers specifically handling json mostly if not FormData
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return response;
-  };
+  }, [setShowReloginModal]);
 
   useEffect(() => {
     if (!isLoading) {

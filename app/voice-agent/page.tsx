@@ -10,47 +10,81 @@ import { API_CONSTANTS } from "@/lib/api-constants";
 import { cn } from "@/lib/utils";
 
 export default function VoiceAgentPage() {
-  const { activeSession } = usePatient();
+  const { activeSession, sessionData, isSessionDataLoading, refreshSessionData } = usePatient();
   const { apiFetch } = useAuth();
   
-  const [view, setView] = useState<'setup' | 'active' | 'results'>('setup');
+  const [view, setView] = useState<'setup' | 'active' | 'results' | 'followup'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [targetPhone, setTargetPhone] = useState("");
   const [callStatus, setCallStatus] = useState<'idle' | 'calling' | 'completed'>('idle');
-  
-  // Magic Endpoint Data
-  const [magicData, setMagicData] = useState<any>(null);
+  const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [pollingStatus, setPollingStatus] = useState<any>(null);
+  const [resultsTab, setResultsTab] = useState<'clinical' | 'transcript'>('clinical');
 
   useEffect(() => {
     if (activeSession) {
       setTargetPhone(activeSession.patient_phone || "");
-      checkInitialData();
+      setCallStatus('idle');
+      setView('setup');
+      setIntakeId(activeSession.intake_id || sessionData?.intake?.intake_id || null);
     }
   }, [activeSession]);
 
-  const checkInitialData = async () => {
-    if (!activeSession?.session_id) return;
-    try {
-      const res = await apiFetch(`/api/v1/sessions/${activeSession.session_id}/data`);
-      if (res.ok) {
-        const d = await res.json();
-        setMagicData(d);
-        if (d.intake) {
-           setCallStatus('completed');
-           setView('results');
-        }
-      }
-    } catch (e) {
-      console.error(e);
+  // Detect follow-up patient (no intake and no triage)
+  useEffect(() => {
+    if (sessionData && !sessionData.intake && !sessionData.triage) {
+      setView('followup');
     }
-  };
+  }, [sessionData]);
+
+  useEffect(() => {
+    if (sessionData?.intake) {
+      setCallStatus('completed');
+      setView('results');
+    }
+    if (sessionData?.intake?.intake_id) {
+      setIntakeId(sessionData.intake.intake_id);
+    }
+  }, [sessionData]);
+
+  // Status Polling Effect
+  useEffect(() => {
+    if (!intakeId || callStatus !== 'calling') {
+      setPollingStatus(null);
+      return;
+    }
+
+    let intervalId: NodeJS.Timeout;
+
+    const checkStatus = async () => {
+      try {
+        const res = await apiFetch(`/api/v1/intake/${intakeId}/status`);
+        if (res.ok) {
+          const statusData = await res.json();
+          setPollingStatus(statusData);
+          
+          if (statusData.is_terminal || statusData.status === 'completed' || statusData.status === 'failed') {
+            clearInterval(intervalId);
+            await refreshSessionData();
+          }
+        }
+      } catch (err) {
+        console.error("Error polling intake status:", err);
+      }
+    };
+
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [intakeId, callStatus, apiFetch, refreshSessionData]);
 
   const downloadIntakeReport = async () => {
-    const intakeId = magicData?.intake?.intake_id;
-    if (!intakeId) return;
+    const reportIntakeId = sessionData?.intake?.intake_id || intakeId;
+    if (!reportIntakeId) return;
     
     try {
-      const res = await apiFetch(`/api/v1/intake/${intakeId}/report`);
+      const res = await apiFetch(`/api/v1/intake/${reportIntakeId}/report`);
       if (!res.ok) throw new Error("Failed to generate PDF report");
       
       const blob = await res.blob();
@@ -66,7 +100,7 @@ export default function VoiceAgentPage() {
     if (!activeSession) return;
     setIsLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         patient_name: activeSession.patient_name,
         patient_phone: targetPhone || activeSession.patient_phone,
         patient_dob: activeSession.patient_dob,
@@ -82,6 +116,11 @@ export default function VoiceAgentPage() {
 
       if (!response.ok) throw new Error("Failed to start intake");
       
+      const data = await response.json();
+      if (data.intake_id) {
+        setIntakeId(data.intake_id);
+      }
+      
       setCallStatus('calling');
       setView('active');
     } catch (err) {
@@ -91,6 +130,35 @@ export default function VoiceAgentPage() {
       setIsLoading(false);
     }
   };
+
+  // Parsing call transcript into bubble objects
+  const parseTranscript = (transcript: string) => {
+    if (!transcript) return [];
+    return transcript.split('\n').map((line, idx) => {
+      const isAgent = line.startsWith('Agent:');
+      const isUser = line.startsWith('User:');
+      let speaker = '';
+      let text = line;
+      
+      if (isAgent) {
+        speaker = 'Clinical Agent';
+        text = line.replace(/^Agent:\s*/i, '');
+      } else if (isUser) {
+        speaker = 'Patient';
+        text = line.replace(/^User:\s*/i, '');
+      } else {
+        speaker = 'Narrator';
+      }
+      
+      // Clean bracket tags like [Patient] or [Concerned]
+      text = text.replace(/\[.*?\]\s*/g, '');
+      
+      return { id: idx, speaker, text, isAgent, isUser };
+    });
+  };
+
+  const transcriptBubbles = parseTranscript(sessionData?.intake?.call_transcript || "");
+  const clinicalData = sessionData?.intake?.clinical_data;
 
   return (
     <div className="min-h-full p-8 bg-white">
@@ -109,6 +177,21 @@ export default function VoiceAgentPage() {
                   <h2 className="text-xl font-bold text-gray-900">No active session selected</h2>
                   <p className="text-sm text-gray-500 mt-2">Please select a patient session from the sidebar to view voice agent transcriptions.</p>
               </div>
+          </motion.div>
+        ) : view === 'followup' ? (
+          <motion.div
+              key="followup"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto"
+          >
+            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500">
+              <FileText size={40} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Follow-up Patient</h2>
+              <p className="text-sm text-gray-500 mt-2">No intake or triage data required for this patient.</p>
+            </div>
           </motion.div>
         ) : !activeSession.referral_id ? (
           <motion.div
@@ -201,7 +284,17 @@ export default function VoiceAgentPage() {
                   </div>
                   <h2 className="text-3xl font-black text-gray-900 tracking-tighter italic uppercase">Engaging {activeSession.patient_name}</h2>
                   <p className="text-gray-500 font-medium text-sm">The AI is currently conducting a clinical intake interview via phone.</p>
-                  <p className="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest"><Loader2 size={12} className="inline animate-spin mr-2"/> Polling connection indefinitely...</p>
+                  <p className="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest">
+                    <Loader2 size={12} className="inline animate-spin mr-2"/>
+                    {pollingStatus ? (
+                      <>
+                        Status: <span className="text-accent-primary">{pollingStatus.status}</span>
+                        {pollingStatus.call_duration_seconds > 0 && ` • Duration: ${pollingStatus.call_duration_seconds}s`}
+                      </>
+                    ) : (
+                      "Initializing connection..."
+                    )}
+                  </p>
               </div>
           </motion.div>
         ) : (
@@ -218,7 +311,7 @@ export default function VoiceAgentPage() {
                   </div>
                   <div className="flex items-center gap-4">
                       <Button variant="outline" className="gap-2 h-12 px-6 rounded-xl font-bold border-gray-100" onClick={() => setView('setup')}>New Call</Button>
-                      {magicData?.intake?.intake_id && (
+                      {(sessionData?.intake?.intake_id || intakeId) && (
                           <Button 
                               onClick={downloadIntakeReport}
                               className="gap-2 bg-gray-900 hover:bg-black h-12 px-8 rounded-xl font-black shadow-2xl">
@@ -229,54 +322,153 @@ export default function VoiceAgentPage() {
               </div>
 
               <div className="grid grid-cols-12 gap-8">
-                  {/* Summary & History */}
-                  <div className="col-span-8 space-y-8">
-                      <div className="bg-white border border-gray-100 rounded-[48px] p-12 shadow-premium relative overflow-hidden group hover:shadow-2xl transition-all">
-                          <div className="absolute top-0 right-0 p-10 opacity-[0.03] text-emerald-500 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                              <Activity size={160} />
-                          </div>
-                          <div className="flex items-center gap-3 text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em] mb-6">
-                              <div className="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                                  <Wand2 size={14} />
-                              </div>
-                              Synthesized History
-                          </div>
-                          <div className="space-y-8 relative z-10">
-                              <p className="text-gray-900 leading-relaxed text-2xl font-black italic">
-                                  "{magicData?.intake?.clinical_data?.clinical_summary || "No summary available."}"
-                              </p>
-                          </div>
+                  {/* Main Intake Content Column */}
+                  <div className="col-span-8 space-y-6">
+                      {/* Tabs Navigation */}
+                      <div className="flex gap-4 border-b border-gray-100 pb-2">
+                          <button
+                              onClick={() => setResultsTab('clinical')}
+                              className={cn(
+                                  "pb-2 px-1 text-sm font-black uppercase tracking-widest border-b-2 transition-all",
+                                  resultsTab === 'clinical' ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"
+                              )}
+                          >
+                              Clinical Profile
+                          </button>
+                          <button
+                              onClick={() => setResultsTab('transcript')}
+                              className={cn(
+                                  "pb-2 px-1 text-sm font-black uppercase tracking-widest border-b-2 transition-all",
+                                  resultsTab === 'transcript' ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"
+                              )}
+                          >
+                              Call Transcript
+                          </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-8">
-                          <div className="bg-white border border-gray-100 rounded-[40px] p-8 shadow-premium space-y-6">
-                              <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Medical History</h4>
+                      {resultsTab === 'clinical' ? (
+                          <div className="space-y-8">
+                              {/* Symptoms Section */}
                               <div className="space-y-4">
-                                  {magicData?.intake?.clinical_data?.relevant_history?.map((item: string, i: number) => (
-                                      <div key={i} className="flex gap-4 group">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0" />
-                                          <p className="text-sm font-bold text-gray-700">{item}</p>
-                                      </div>
-                                  ))}
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reported Symptoms</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {clinicalData?.symptoms?.map((s: any, idx: number) => (
+                                          <div key={idx} className="bg-gray-50 border border-gray-100 rounded-3xl p-6 flex flex-col justify-between gap-4">
+                                              <div className="flex items-start justify-between">
+                                                  <h5 className="font-bold text-gray-900 capitalize text-base">{s.symptom}</h5>
+                                                  <span className={cn(
+                                                      "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full",
+                                                      s.severity === 'severe' ? "bg-red-50 text-red-600" : s.severity === 'moderate' ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-600"
+                                                  )}>
+                                                      {s.severity || 'Reported'}
+                                                  </span>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500">
+                                                  {s.onset && <div><span className="text-[9px] font-bold text-gray-400 block uppercase tracking-wider mb-0.5">Onset</span>{s.onset}</div>}
+                                                  {s.duration && <div><span className="text-[9px] font-bold text-gray-400 block uppercase tracking-wider mb-0.5">Duration</span>{s.duration}</div>}
+                                                  {s.frequency && <div><span className="text-[9px] font-bold text-gray-400 block uppercase tracking-wider mb-0.5">Frequency</span>{s.frequency}</div>}
+                                              </div>
+                                          </div>
+                                      ))}
+                                      {(!clinicalData?.symptoms || clinicalData.symptoms.length === 0) && (
+                                          <p className="text-sm font-medium text-gray-400 italic">No symptoms reported.</p>
+                                      )}
+                                  </div>
                               </div>
-                          </div>
-                          <div className="bg-white border border-gray-100 rounded-[40px] p-8 shadow-premium space-y-6">
-                              <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Worsening Symptoms</h4>
-                              <div className="space-y-4">
-                                  {magicData?.intake?.clinical_data?.worsening_symptoms?.map((item: string, i: number) => (
-                                      <div key={i} className="flex gap-4 group">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 shrink-0" />
-                                          <p className="text-sm font-bold text-gray-700">{item}</p>
+
+                              {/* Medical History Checklist */}
+                              <div className="bg-white border border-gray-100 rounded-[40px] p-8 shadow-sm space-y-6">
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Clinical Checklist</h4>
+                                  <div className="grid grid-cols-2 gap-8">
+                                      <div className="space-y-2">
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Past Conditions</span>
+                                          <div className="flex flex-wrap gap-2">
+                                              {clinicalData?.past_conditions?.map((c: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{c}</span>) || "None reported"}
+                                              {(!clinicalData?.past_conditions || clinicalData.past_conditions.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                          </div>
                                       </div>
-                                  ))}
+
+                                      <div className="space-y-2">
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Current Medications</span>
+                                          <div className="flex flex-wrap gap-2">
+                                              {clinicalData?.current_medications?.map((m: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{m}</span>) || "None reported"}
+                                              {(!clinicalData?.current_medications || clinicalData.current_medications.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                          </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Allergies</span>
+                                          <div className="flex flex-wrap gap-2">
+                                              {clinicalData?.allergies?.map((a: string, idx: number) => <span key={idx} className="bg-red-50 text-red-600 border border-red-100 text-xs font-bold px-3 py-1.5 rounded-xl">{a}</span>) || "None reported"}
+                                              {(!clinicalData?.allergies || clinicalData.allergies.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                          </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Surgical History</span>
+                                          <div className="flex flex-wrap gap-2">
+                                              {clinicalData?.surgical_history?.map((s: string, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{s}</span>) || "None reported"}
+                                              {(!clinicalData?.surgical_history || clinicalData.surgical_history.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                          </div>
+                                      </div>
+
+                                      <div className="col-span-2 space-y-2 border-t border-gray-50 pt-4">
+                                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Lifestyle & Social Factors</span>
+                                          <div className="grid grid-cols-3 gap-4 text-xs font-medium text-gray-600">
+                                              {clinicalData?.lifestyle_factors?.occupation && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Occupation</span>{clinicalData.lifestyle_factors.occupation}</div>}
+                                              {clinicalData?.lifestyle_factors?.exercise && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Exercise</span>{clinicalData.lifestyle_factors.exercise}</div>}
+                                              {clinicalData?.lifestyle_factors?.smoking && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Smoking</span>{clinicalData.lifestyle_factors.smoking}</div>}
+                                              {clinicalData?.lifestyle_factors?.alcohol && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Alcohol</span>{clinicalData.lifestyle_factors.alcohol}</div>}
+                                              {clinicalData?.lifestyle_factors?.diet && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Diet</span>{clinicalData.lifestyle_factors.diet}</div>}
+                                              {clinicalData?.lifestyle_factors?.sleep_quality && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Sleep</span>{clinicalData.lifestyle_factors.sleep_quality}</div>}
+                                          </div>
+                                      </div>
+                                  </div>
                               </div>
+
+                              {clinicalData?.additional_concerns && (
+                                  <div className="bg-orange-50/20 border border-orange-100/50 rounded-3xl p-6">
+                                      <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider block mb-2">Additional Concerns</span>
+                                      <p className="text-sm font-semibold text-gray-700 italic">"{clinicalData.additional_concerns}"</p>
+                                  </div>
+                              )}
                           </div>
-                      </div>
+                      ) : (
+                          /* Transcript View */
+                          <div className="bg-gray-50 border border-gray-100 rounded-[40px] p-8 space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar flex flex-col">
+                              {transcriptBubbles.map((bubble) => (
+                                  <div
+                                      key={bubble.id}
+                                      className={cn(
+                                          "flex flex-col max-w-[80%] rounded-[24px] p-4 shadow-sm",
+                                          bubble.isAgent
+                                              ? "bg-white self-start border border-gray-100"
+                                              : bubble.isUser
+                                                  ? "bg-gray-900 text-white self-end"
+                                                  : "bg-gray-200 text-gray-600 text-xs self-center"
+                                      )}
+                                  >
+                                      <span className={cn(
+                                          "text-[9px] font-black uppercase tracking-wider mb-1 block",
+                                          bubble.isAgent ? "text-accent-primary" : bubble.isUser ? "text-accent-secondary text-white/50" : "text-gray-400"
+                                      )}>
+                                          {bubble.speaker}
+                                      </span>
+                                      <p className="text-sm font-semibold leading-relaxed">
+                                          {bubble.text}
+                                      </p>
+                                  </div>
+                              ))}
+                              {transcriptBubbles.length === 0 && (
+                                  <p className="text-sm text-gray-400 italic text-center py-10">No transcript available.</p>
+                              )}
+                          </div>
+                      )}
                   </div>
 
-                  {/* Categorization Card */}
+                  {/* Right Column: Categorization Card */}
                   <div className="col-span-4 space-y-8">
-                      {magicData?.categorization ? (
+                      {sessionData?.categorization ? (
                           <motion.div 
                               initial={{ opacity: 0, x: 20 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -288,41 +480,41 @@ export default function VoiceAgentPage() {
                               
                               <div className="flex items-center gap-6 mb-10">
                                   <div className="w-20 h-20 rounded-3xl bg-white/10 flex items-center justify-center text-5xl font-black italic text-accent-primary shadow-inner">
-                                      {magicData.categorization.category}
+                                      {sessionData.categorization.category}
                                   </div>
                                   <div>
-                                      <h3 className="text-xl font-bold italic tracking-tight">Category {magicData.categorization.category}</h3>
+                                      <h3 className="text-xl font-bold italic tracking-tight">Category {sessionData.categorization.category}</h3>
                                       <p className="text-xs text-white/50 font-bold uppercase tracking-widest mt-1">Cross-Referenced</p>
                                   </div>
                               </div>
 
                               <div className="space-y-6">
                                   <div className="p-5 bg-white/5 rounded-2xl border border-white/10 italic text-sm leading-relaxed text-white/80">
-                                      "{magicData.categorization.reasoning}"
+                                      "{sessionData.categorization.reasoning}"
                                   </div>
 
                                   <div className="space-y-4">
                                       <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest">Identified Discrepancies</h4>
-                                      {magicData.categorization.discrepancies?.map((item: string, i: number) => (
+                                      {sessionData.categorization.discrepancies?.map((item: string, i: number) => (
                                           <div key={i} className="flex gap-3 text-xs font-bold text-orange-400 italic">
                                               <AlertCircle size={14} className="shrink-0" />
                                               {item}
                                           </div>
                                       ))}
-                                      {(!magicData.categorization.discrepancies || magicData.categorization.discrepancies.length === 0) && (
+                                      {(!sessionData.categorization.discrepancies || sessionData.categorization.discrepancies.length === 0) && (
                                          <p className="text-xs text-white/50 italic">No historical discrepancies found.</p>
                                       )}
                                   </div>
 
                                   <div className="space-y-4">
                                       <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest">Escalation Factors</h4>
-                                      {magicData.categorization.escalation_factors?.map((item: string, i: number) => (
+                                      {sessionData.categorization.escalation_factors?.map((item: string, i: number) => (
                                           <div key={i} className="flex gap-3 text-xs font-bold text-red-400 italic">
                                               <ShieldAlert size={14} className="shrink-0" />
                                               {item}
                                           </div>
                                       ))}
-                                      {(!magicData.categorization.escalation_factors || magicData.categorization.escalation_factors.length === 0) && (
+                                      {(!sessionData.categorization.escalation_factors || sessionData.categorization.escalation_factors.length === 0) && (
                                          <p className="text-xs text-white/50 italic">No critical escalations required.</p>
                                       )}
                                   </div>

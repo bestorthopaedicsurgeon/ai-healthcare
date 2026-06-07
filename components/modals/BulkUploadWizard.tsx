@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, UploadCloud, FileText, CheckCircle, ChevronRight, File as FileIcon, User, AlertCircle } from "lucide-react";
+import { X, UploadCloud, FileText, CheckCircle, ChevronRight, File as FileIcon, User, AlertCircle, XCircle, Calendar, AlertTriangle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { usePatient } from "@/context/PatientContext";
@@ -24,6 +24,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
   const [fileMappings, setFileMappings] = useState<Record<number, { gpLetter: string; previousScribe: string }>>({});
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadResult, setUploadResult] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state on close
@@ -36,6 +37,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
         setParsedPatients([]);
         setFileMappings({});
         setIsSubmitting(false);
+        setUploadResult(null);
       }, 300); // Wait for exit animation
     }
   }, [isOpen]);
@@ -152,7 +154,8 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
       });
 
       // 5. Submit
-      await uploadBulkPatients(formData);
+      const response = await uploadBulkPatients(formData);
+      setUploadResult(response);
       
       toast.success("Bulk upload processed successfully!");
       setStep(3);
@@ -354,15 +357,148 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                 </motion.div>
               )}
 
-              {/* STEP 3: SUCCESS */}
+              {/* STEP 3: SUCCESS OR RESPONSE DETAILS */}
               {step === 3 && (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
-                        <CheckCircle size={48} className="text-emerald-500" />
+                !uploadResult ? (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-16 h-16 border-4 border-accent-primary border-t-transparent rounded-full animate-spin mb-6" />
+                      <h3 className="text-xl font-bold text-gray-900">Processing Upload Results...</h3>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.98 }} 
+                    animate={{ opacity: 1, scale: 1 }} 
+                    className="space-y-8"
+                  >
+                    <div className="text-center space-y-2 mb-6">
+                      <h3 className="text-2xl font-black text-gray-900 tracking-tight italic uppercase">Processing Complete</h3>
+                      <p className="text-sm text-gray-400 font-bold uppercase tracking-wider">Bulk Registry Ingestion Report</p>
                     </div>
-                    <h3 className="text-3xl font-black text-gray-900 tracking-tight mb-3">Upload Successful</h3>
-                    <p className="text-gray-500 font-medium max-w-sm">The patients have been registered. The clinical triage and scheduling agents have been dispatched in the background.</p>
-                </motion.div>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className="bg-gray-50 border border-gray-100 rounded-[24px] p-6 text-center space-y-1 shadow-sm">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Rows</p>
+                        <p className="text-3xl font-black text-gray-900 italic">{uploadResult.total_rows}</p>
+                      </div>
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-[24px] p-6 text-center space-y-1 shadow-sm">
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Successful</p>
+                        <p className="text-3xl font-black text-emerald-600 italic">{uploadResult.successful}</p>
+                      </div>
+                      <div className="bg-rose-50 border border-rose-100 rounded-[24px] p-6 text-center space-y-1 shadow-sm">
+                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Failed</p>
+                        <p className="text-3xl font-black text-rose-600 italic">{uploadResult.failed}</p>
+                      </div>
+                    </div>
+
+                    {/* Detailed Results List */}
+                    <div className="space-y-6">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-3">Ingestion Details</h4>
+                      <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                        {uploadResult.results?.map((row: any, i: number) => {
+                          const isSuccess = row.success;
+                          const rowNum = row.row_index + 2; // Data row starts at index 0 which corresponds to row 2 of CSV
+
+                          return (
+                            <div 
+                              key={i} 
+                              className={`border rounded-2xl p-5 flex flex-col md:flex-row md:items-start gap-4 transition-all hover:shadow-sm ${
+                                isSuccess ? "bg-white border-gray-100 hover:border-emerald-200" : "bg-rose-50/20 border-rose-100 hover:border-rose-200"
+                              }`}
+                            >
+                              {/* Icon / Status */}
+                              <div className="shrink-0 mt-0.5">
+                                {isSuccess ? (
+                                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                                    <Check size={16} className="stroke-[3]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-rose-50/80 text-rose-500 flex items-center justify-center">
+                                    <XCircle size={18} className="stroke-[2.5]" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Details */}
+                              <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className="text-[10px] font-bold text-gray-400 font-mono bg-gray-50 border border-gray-100 px-2 py-0.5 rounded">
+                                    Row {rowNum}
+                                  </span>
+                                  <p className="text-sm font-black text-gray-900 tracking-tight italic">
+                                    {row.patient_name || "Row " + rowNum}
+                                  </p>
+                                  {row.patient_type && (
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                      row.patient_type === 'new' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-purple-50 text-purple-600 border border-purple-100"
+                                    }`}>
+                                      {row.patient_type}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Success details */}
+                                {isSuccess ? (
+                                  <div className="flex flex-col gap-2 text-xs text-gray-500 font-medium">
+                                    {row.scheduled_call_at && (
+                                      <span className="flex items-center gap-1.5 text-emerald-600">
+                                        <Calendar size={13} />
+                                        Call scheduled: {new Date(row.scheduled_call_at).toLocaleString(undefined, { 
+                                          dateStyle: 'medium', 
+                                          timeStyle: 'short' 
+                                        })}
+                                      </span>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {row.patient_id && (
+                                        <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                          Patient ID: {row.patient_id.slice(0, 8)}...
+                                        </span>
+                                      )}
+                                      {row.session_id && (
+                                        <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                          Session ID: {row.session_id.slice(0, 8)}...
+                                        </span>
+                                      )}
+                                      {row.referral_id && (
+                                        <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                          Referral ID: {row.referral_id.slice(0, 8)}...
+                                        </span>
+                                      )}
+                                      {row.intake_id && (
+                                        <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                                          Intake ID: {row.intake_id.slice(0, 8)}...
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Failure details */
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-bold text-rose-600 flex items-center gap-1">
+                                      <AlertTriangle size={13} />
+                                      {row.error || "Failed to process row"}
+                                    </p>
+                                    {row.missing_fields && row.missing_fields.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 items-center">
+                                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider mr-1">Missing / Invalid Fields:</span>
+                                        {row.missing_fields.map((field: string, fIdx: number) => (
+                                          <span key={fIdx} className="px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-600 font-mono text-[10px] rounded">
+                                            {field}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
+                )
               )}
 
             </div>

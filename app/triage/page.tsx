@@ -20,7 +20,11 @@ export default function TriagePage() {
     activeSessionId,
     activePatientId, 
     activePatient, 
-    openSessionModal 
+    openSessionModal,
+    refreshSessions,
+    sessionData,
+    isSessionDataLoading,
+    refreshSessionData
   } = usePatient();
   const [isUploading, setIsUploading] = useState(false);
   const [referralData, setReferralData] = useState<any | null>(null);
@@ -36,46 +40,20 @@ export default function TriagePage() {
     raw_content: "Patient presents with severe left knee pain for 6 months. Requesting orthopaedic consult."
   });
 
+  // Derive referralData from centralized sessionData when available
   useEffect(() => {
     if (!activeSession?.referral_id) {
        setReferralData(null);
        setIsExpanded(false);
        return;
     }
-
-    const fetchSummary = async () => {
-      setIsLoadingReferral(true);
-      try {
-        const response = await apiFetch(`/api/v1/triage/referrals/${activeSession.referral_id}/summary`);
-        if (!response.ok) throw new Error("Failed to fetch referral summary");
-        const data = await response.json();
-        setReferralData(data);
-        setIsExpanded(false);
-      } catch (err) {
-        console.error("Failed to load referral summary:", err);
-      } finally {
-        setIsLoadingReferral(false);
-      }
-    };
-
-    fetchSummary();
-  }, [activeSession?.referral_id, apiFetch]);
-
-  const handleExpandDetails = async () => {
-    if (!activeSession?.referral_id) return;
-    setIsLoadingReferral(true);
-    try {
-      const response = await apiFetch(`/api/v1/triage/referrals/${activeSession.referral_id}`);
-      if (!response.ok) throw new Error("Failed to fetch full referral");
-      const data = await response.json();
-      setReferralData(data);
-      setIsExpanded(true);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load full triage data.");
-    } finally {
-      setIsLoadingReferral(false);
+    if (sessionData?.triage) {
+      setReferralData(sessionData.triage);
     }
+  }, [activeSession?.referral_id, sessionData]);
+
+  const handleExpandDetails = () => {
+    setIsExpanded(true);
   };
 
   const handleViewDocument = async (url: string) => {
@@ -105,6 +83,8 @@ export default function TriagePage() {
       const data = await response.json();
       setReferralData(data);
       setIsExpanded(true);
+      await refreshSessions();
+      await refreshSessionData();
     } catch (err) {
       console.error("Submit error:", err);
       alert("Failed to triage manual data. Please try again.");
@@ -132,6 +112,8 @@ export default function TriagePage() {
       const data = await response.json();
       setReferralData(data);
       setIsExpanded(true); // Automatically expand on fresh upload
+      await refreshSessions();
+      await refreshSessionData();
     } catch (err) {
       console.error("Upload error:", err);
       alert("Failed to triage referral. Please try again.");
@@ -222,7 +204,22 @@ export default function TriagePage() {
                         </div>
                     )}
                 </motion.div>
-            ) : !referralData ? (
+            ) : (sessionData && !sessionData.triage && !sessionData.intake) ? (
+  <motion.div
+    key="followup"
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto"
+  >
+    <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500">
+      <FileText size={40} />
+    </div>
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">Follow-up Patient</h2>
+      <p className="text-sm text-gray-500 mt-2">No intake or triage data required for this patient.</p>
+    </div>
+  </motion.div>
+) : !referralData ? (
               <motion.div 
                 key="upload-ui"
                 initial={{ opacity: 0, y: 20 }}
@@ -429,7 +426,7 @@ export default function TriagePage() {
                     <div className="h-px w-24 bg-gray-100" />
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        <div className="space-y-4">
+                        <div className="space-y-4 md:col-span-2">
                             <p className="text-gray-500 leading-relaxed text-lg font-medium">
                             <span className="font-bold text-gray-400 block mb-2 uppercase text-xs tracking-widest">Reasoning Matrix</span>
                             {referralData.reasoning}
