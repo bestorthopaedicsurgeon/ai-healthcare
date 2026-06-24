@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { API_CONSTANTS } from "@/lib/api-constants";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -27,6 +27,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// localStorage keys
+const LS_ACCESS = "access_token";
+const LS_REFRESH = "refresh_token";
+const LS_PHYSICIAN = "physician";
+
+interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  physician: Physician;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [physician, setPhysician] = useState<Physician | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -35,25 +46,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Refresh mutex: when one request triggers a refresh, every other
+  // 401-caught request awaits the same in-flight promise instead of
+  // firing N parallel refresh calls.
+  const refreshInFlight = useRef<Promise<string | null> | null>(null);
+
   useEffect(() => {
-    const storedToken = localStorage.getItem("access_token");
-    const storedPhysician = localStorage.getItem("physician");
-    
+    const storedToken = localStorage.getItem(LS_ACCESS);
+    const storedPhysician = localStorage.getItem(LS_PHYSICIAN);
+
     if (storedToken) {
       setToken(storedToken);
       if (storedPhysician) {
-        setPhysician(JSON.parse(storedPhysician));
+        try {
+          setPhysician(JSON.parse(storedPhysician));
+        } catch {
+          // Corrupted localStorage entry — treat as logged out
+          localStorage.removeItem(LS_PHYSICIAN);
+        }
       }
     }
     setIsLoading(false);
   }, []);
 
-  const persistAuth = (access_token: string, doc: Physician) => {
-    localStorage.setItem("access_token", access_token);
-    localStorage.setItem("physician", JSON.stringify(doc));
-    setToken(access_token);
-    setPhysician(doc);
+  const persistAuth = (pair: TokenPair) => {
+    localStorage.setItem(LS_ACCESS, pair.access_token);
+    localStorage.setItem(LS_REFRESH, pair.refresh_token);
+    localStorage.setItem(LS_PHYSICIAN, JSON.stringify(pair.physician));
+    setToken(pair.access_token);
+    setPhysician(pair.physician);
   };
+
+  // Update only the access token (refresh response also includes a fresh
+  // refresh token — backend rotates).
+  const persistTokensOnly = (access_token: string, refresh_token: string) => {
+    localStorage.setItem(LS_ACCESS, access_token);
+    localStorage.setItem(LS_REFRESH, refresh_token);
+    setToken(access_token);
+  };
+
+  const clearAuth = useCallback(() => {
+    localStorage.removeItem(LS_ACCESS);
+    localStorage.removeItem(LS_REFRESH);
+    localStorage.removeItem(LS_PHYSICIAN);
+    setToken(null);
+    setPhysician(null);
+  }, []);
 
   const login = async (email: string, password: string, redirect = true) => {
     const res = await fetch(`${API_CONSTANTS.BASE_URL}${API_CONSTANTS.AUTH_LOGIN}`, {
@@ -64,10 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await res.json();
     if (!res.ok) {
-        throw new Error(data.message || data.detail || "Login failed");
+      throw new Error(data.message || data.detail || "Login failed");
     }
 
-    persistAuth(data.access_token, data.physician);
+    persistAuth({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      physician: data.physician,
+    });
     if (redirect) {
       router.push("/dashboard");
     }
@@ -82,56 +124,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await res.json();
     if (!res.ok) {
-        throw new Error(data.message || data.detail || "Registration failed");
+      throw new Error(data.message || data.detail || "Registration failed");
     }
 
-    persistAuth(data.access_token, data.physician);
+    persistAuth({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      physician: data.physician,
+    });
     router.push("/dashboard");
   };
 
   const logout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("physician");
-    setToken(null);
-    setPhysician(null);
+    clearAuth();
     router.push("/login");
   };
 
-  const apiFetch = useCallback(async (url: string, options: RequestInit = {}) => {
-    const currentToken = localStorage.getItem("access_token");
-    
-    // Create headers specifically handling json mostly if not FormData
-    const isFormData = options.body instanceof FormData;
-    
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> || {}),
-    };
-    
-    if (currentToken) {
-      headers["Authorization"] = `Bearer ${currentToken}`;
-    }
-    
-    if (!isFormData && !headers["Content-Type"]) {
+  // ----- Refresh interceptor -----
+  // Returns the new access token on success, or null on failure.
+  // Mutexed so concurrent 401s share one in-flight refresh call.
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+
+    const refreshToken = localStorage.getItem(LS_REFRESH);
+    if (!refreshToken) return null;
+
+    refreshInFlight.current = (async () => {
+      try {
+        const res = await fetch(
+          `${API_CONSTANTS.BASE_URL}${API_CONSTANTS.AUTH_REFRESH}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          },
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data?.access_token || !data?.refresh_token) return null;
+        persistTokensOnly(data.access_token, data.refresh_token);
+        return data.access_token as string;
+      } catch {
+        return null;
+      } finally {
+        // Release the mutex on the next tick so concurrent awaiters see
+        // the resolved value before the slot reopens.
+        setTimeout(() => {
+          refreshInFlight.current = null;
+        }, 0);
+      }
+    })();
+
+    return refreshInFlight.current;
+  }, []);
+
+  // Internal fetch with auth header + auto-refresh on 401.
+  const doFetch = useCallback(
+    async (url: string, options: RequestInit, accessToken: string | null): Promise<Response> => {
+      const isFormData = options.body instanceof FormData;
+      const headers: Record<string, string> = {
+        ...(options.headers as Record<string, string> || {}),
+      };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+      if (!isFormData && !headers["Content-Type"]) {
         headers["Content-Type"] = "application/json";
-    }
+      }
+      return fetch(
+        url.startsWith("http") ? url : `${API_CONSTANTS.BASE_URL}${url}`,
+        { ...options, headers },
+      );
+    },
+    [],
+  );
 
-    const response = await fetch(url.startsWith('http') ? url : `${API_CONSTANTS.BASE_URL}${url}`, {
-      ...options,
-      headers
-    });
+  const apiFetch = useCallback(
+    async (url: string, options: RequestInit = {}) => {
+      const accessToken = localStorage.getItem(LS_ACCESS);
+      let response = await doFetch(url, options, accessToken);
 
-    if (response.status === 401) {
-      setShowReloginModal(true);
-    }
+      // If we got 401 AND we actually had a token AND we're not already
+      // calling /auth/refresh (avoid infinite loop), try one refresh
+      // then retry the original request once.
+      const isRefreshCall =
+        url.includes(API_CONSTANTS.AUTH_REFRESH) ||
+        url.includes(API_CONSTANTS.AUTH_LOGIN) ||
+        url.includes(API_CONSTANTS.AUTH_REGISTER);
 
-    return response;
-  }, [setShowReloginModal]);
+      if (response.status === 401 && accessToken && !isRefreshCall) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          // Retry once with the fresh token
+          response = await doFetch(url, options, newToken);
+          if (response.status !== 401) return response;
+        }
+        // Refresh failed (or retry still 401) — last resort
+        clearAuth();
+        setShowReloginModal(true);
+      }
+
+      return response;
+    },
+    [doFetch, refreshAccessToken, clearAuth],
+  );
 
   useEffect(() => {
     if (!isLoading) {
       const isAuthRoute = pathname === "/login" || pathname === "/signup";
       const isMarketingRoute = pathname === "/" || pathname === "/pricing";
-      
+
       if (!token && !isAuthRoute && !isMarketingRoute) {
         router.push("/login");
       }
