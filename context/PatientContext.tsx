@@ -317,17 +317,51 @@ const [sessionData, setSessionData] = useState<any | null>(null);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
-    let reconnectTimer: NodeJS.Timeout;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    let cancelled = false;
+    // Exponential backoff: 5s, 10s, 20s, 40s, 80s (cap). After 5 failures
+    // we stop trying — the user has to refresh / re-login.
+    let backoffMs = 5_000;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    const MAX_BACKOFF_MS = 80_000;
 
-    const connectWebSocket = () => {
-        if (!token) return;
-        
-        // Ensure proper websocket protocol
-        const wsUrl = `${API_CONSTANTS.WS_EVENTS}?token=${token}`;
+    const connectWebSocket = async () => {
+        if (cancelled || !token) return;
+
+        // 1) Exchange the long-lived JWT for a one-shot WS ticket so the
+        //    JWT never lands in proxy/CDN access logs via the WS URL.
+        let ticket: string | null = null;
+        try {
+            const res = await fetch(
+                `${API_CONSTANTS.BASE_URL}${API_CONSTANTS.AUTH_WS_TICKET}`,
+                {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+            );
+            if (res.ok) {
+                ticket = (await res.json()).ticket;
+            } else if (process.env.NODE_ENV !== "production") {
+                console.warn("ws-ticket fetch failed, falling back to legacy ?token=");
+            }
+        } catch {
+            // Network blip — fall back to legacy below
+        }
+
+        const wsUrl = ticket
+            ? `${API_CONSTANTS.WS_EVENTS}?ticket=${ticket}`
+            : `${API_CONSTANTS.WS_EVENTS}?token=${token}`; // legacy fallback during deploy
+
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log('WebSocket connected for realtime events');
+            // Reset backoff on successful connect
+            backoffMs = 5_000;
+            attempts = 0;
+            if (process.env.NODE_ENV !== "production") {
+                console.log("WebSocket connected for realtime events");
+            }
         };
 
         ws.onmessage = (msg) => {
@@ -389,15 +423,23 @@ const [sessionData, setSessionData] = useState<any | null>(null);
         };
 
         ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            // Try to reconnect if we still have a token
-            if (token) {
-                reconnectTimer = setTimeout(connectWebSocket, 5000);
+            if (cancelled || !token) return;
+            attempts += 1;
+            if (attempts > MAX_ATTEMPTS) {
+                if (process.env.NODE_ENV !== "production") {
+                    console.warn(`WS reconnect gave up after ${MAX_ATTEMPTS} attempts`);
+                }
+                return;
             }
+            const delay = backoffMs;
+            backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+            reconnectTimer = setTimeout(connectWebSocket, delay);
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            if (process.env.NODE_ENV !== "production") {
+                console.error("WebSocket error:", error);
+            }
             ws?.close();
         };
     };
@@ -407,6 +449,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     }
 
     return () => {
+        cancelled = true;
         if (reconnectTimer) clearTimeout(reconnectTimer);
         if (ws) {
             ws.onclose = null;

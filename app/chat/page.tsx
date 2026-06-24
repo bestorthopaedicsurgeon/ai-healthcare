@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Send, Paperclip, FileText, Bot, User, X, Activity, Loader2 } from "lucide-react";
+import { Send, Bot, User, Activity, Loader2 } from "lucide-react";
 import { usePatient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,6 @@ export default function ChatPage() {
   
   const [messages, setMessages] = useState<{id: string, role: "user" | "assistant", content: string}[]>([]);
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState<{name: string, size: string}[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -175,21 +174,13 @@ export default function ChatPage() {
 
                     <div className="p-6 border-t border-gray-100 bg-white">
                         <div className="max-w-3xl mx-auto space-y-4">
-                            {files.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {files.map((file, i) => (
-                                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium group">
-                                            <FileText size={14} className="text-gray-400" />
-                                            <span>{file.name}</span>
-                                            <button onClick={() => setFiles(f => f.filter((_, idx) => idx !== i))} className="hover:text-red-500"><X size={14} /></button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                             <div className="relative group">
-                                <textarea rows={1} placeholder={`Message AI about ${activeSession.patient_name}...`} className="w-full bg-gray-50 border border-gray-200 rounded-[20px] py-4 px-6 pr-32 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all resize-none text-sm font-medium" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
+                                <textarea rows={1} placeholder={`Message AI about ${activeSession.patient_name}...`} className="w-full bg-gray-50 border border-gray-200 rounded-[20px] py-4 px-6 pr-20 focus:outline-none focus:ring-2 focus:ring-accent-primary/20 transition-all resize-none text-sm font-medium" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
                                 <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                                    <button disabled={isTyping} onClick={() => setFiles([{ name: "report.pdf", size: "1MB" }])} className="p-2 text-gray-400 hover:text-gray-600 transition-all disabled:opacity-50"><Paperclip size={20} /></button>
+                                    {/* File attachment dropped — the dummy "paperclip" button created
+                                        a fake report.pdf entry that did nothing. Real attachment design
+                                        is a separate decision (per-turn doc / persistent session doc /
+                                        image-for-vision). Will re-add once the design is picked. */}
                                     <button disabled={!input.trim() || isTyping} onClick={sendMessage} className="p-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all shadow-xl disabled:bg-gray-200 disabled:shadow-none">
                                         {isTyping ? <Loader2 className="animate-spin w-5 h-5" /> : <Send size={20} />}
                                     </button>

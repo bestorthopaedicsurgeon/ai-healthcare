@@ -15,6 +15,7 @@ export const API_CONSTANTS = {
     AUTH_REGISTER: "/api/v1/auth/register",
     AUTH_REFRESH: "/api/v1/auth/refresh",
     AUTH_ME: "/api/v1/auth/me",
+    AUTH_WS_TICKET: "/api/v1/auth/ws-ticket",
     
     // Scribe
     SCRIBE_CONSULTATIONS_UPLOAD_AUDIO: "/api/v1/scribe/consultations/upload-audio",
