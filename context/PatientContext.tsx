@@ -33,6 +33,67 @@ export interface Session {
     created_at: string;
 }
 
+// --- Bulk PDF flow types (shared with BulkUploadWizard) ---
+
+export interface ParsedPatientRow {
+    row_index: number;
+    time_label: string;
+    appointment_datetime: string | null;
+    patient_name: string | null;
+    patient_dob: string | null;
+    patient_phone: string | null;
+    raw_note: string;
+    detected_type: "new" | "followup" | "unclear";
+    detection_reason: string;
+    phone_warning: string | null;
+}
+
+export interface NonPatientRow {
+    row_index: number;
+    time_label: string;
+    raw_text: string;
+}
+
+export interface ParsedSchedule {
+    appointment_date: string | null;
+    doctor_name: string | null;
+    patient_rows: ParsedPatientRow[];
+    non_patient_rows: NonPatientRow[];
+    parser_warnings: string[];
+}
+
+export interface ConfirmedPatientPayload {
+    patient_name: string;
+    patient_type: "new" | "followup";
+    appointment_datetime: string;
+    patient_phone: string | null;
+    patient_dob: string | null;
+    notes: string | null;
+    source_row_index?: number;
+}
+
+export interface BulkRowResult {
+    row_index: number;
+    patient_name: string;
+    patient_type: "new" | "followup";
+    success: boolean;
+    patient_id?: string | null;
+    session_id?: string | null;
+    referral_id?: string | null;
+    intake_id?: string | null;
+    scheduled_call_at?: string | null;
+    error?: string | null;
+    missing_fields?: string[];
+}
+
+export interface BulkUploadResponse {
+    bulk_upload_id: string;
+    total_rows: number;
+    successful: number;
+    failed: number;
+    results: BulkRowResult[];
+}
+
 interface PatientContextType {
   patients: Patient[];
   sessions: Session[];
@@ -56,9 +117,9 @@ interface PatientContextType {
   closeSessionModal: () => void;
   isSessionModalOpen: boolean;
   sessionRedirectPath: string | null;
-  uploadBulkPatients: (formData: FormData) => Promise<any>;
-  parseSchedulePdf: (pdfFile: File) => Promise<any>;
-  confirmBulkPatients: (patients: any[]) => Promise<any>;
+  uploadBulkPatients: (formData: FormData) => Promise<BulkUploadResponse>;
+  parseSchedulePdf: (pdfFile: File) => Promise<ParsedSchedule>;
+  confirmBulkPatients: (patients: ConfirmedPatientPayload[]) => Promise<BulkUploadResponse>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -161,7 +222,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     return data;
   };
 
-  const uploadBulkPatients = async (formData: FormData) => {
+  const uploadBulkPatients = async (formData: FormData): Promise<BulkUploadResponse> => {
     const res = await apiFetch(API_CONSTANTS.BULK_UPLOAD, {
         method: "POST",
         body: formData
@@ -170,12 +231,12 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     if (!res.ok) throw new Error(data.detail || "Failed to upload bulk patients");
     await refreshPatients();
     await refreshSessions();
-    return data;
+    return data as BulkUploadResponse;
   };
 
   // PDF bulk flow (new) — step 1: send the schedule PDF, get back a
   // structured patient list + non-patient rows. NO DB writes yet.
-  const parseSchedulePdf = async (pdfFile: File) => {
+  const parseSchedulePdf = async (pdfFile: File): Promise<ParsedSchedule> => {
     const formData = new FormData();
     formData.append("schedule", pdfFile);
     const res = await apiFetch(API_CONSTANTS.BULK_PARSE_PDF, {
@@ -184,13 +245,15 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to parse schedule PDF");
-    return data;
+    return data as ParsedSchedule;
   };
 
   // PDF bulk flow (new) — step 2: send the surgeon-confirmed patient list
   // to create Patients + Sessions + (for new patients) scheduled IntakeRecords.
   // GP letters are uploaded per-patient later via /triage/referrals/upload.
-  const confirmBulkPatients = async (patients: any[]) => {
+  const confirmBulkPatients = async (
+    patients: ConfirmedPatientPayload[],
+  ): Promise<BulkUploadResponse> => {
     const res = await apiFetch(API_CONSTANTS.BULK_CONFIRM_PATIENTS, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -200,7 +263,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     if (!res.ok) throw new Error(data.detail || "Failed to confirm bulk patients");
     await refreshPatients();
     await refreshSessions();
-    return data;
+    return data as BulkUploadResponse;
   };
 
   const setScribeStatus = (patientId: string, status: 'idle' | 'active' | 'finished') => {
@@ -267,13 +330,17 @@ const [sessionData, setSessionData] = useState<any | null>(null);
             console.log('WebSocket connected for realtime events');
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = (msg) => {
             try {
-                const data = JSON.parse(event.data);
-                console.log('WS Event:', data);
-                
-                // Handle different event types
-                switch (data.type) {
+                const payload = JSON.parse(msg.data);
+                // Backend sends { event, data, ts } — NOT { type, ... }
+                const eventName: string | undefined = payload.event;
+                if (process.env.NODE_ENV !== 'production') {
+                    // Avoid PHI in production console logs
+                    console.log('WS Event:', eventName);
+                }
+
+                switch (eventName) {
                     case 'ws.connected':
                         // Initial connection confirmed
                         break;
@@ -308,8 +375,8 @@ const [sessionData, setSessionData] = useState<any | null>(null);
                         refreshSessionData();
                         break;
                     default:
-                        // If there are other events like intake.status we can trigger a silent refresh
-                        if (data.type?.startsWith('intake.') || data.type?.startsWith('categorization.')) {
+                        // Any other intake.* or categorization.* event still triggers a silent refresh
+                        if (eventName?.startsWith('intake.') || eventName?.startsWith('categorization.')) {
                             refreshPatients();
                             refreshSessions();
                             refreshSessionData();

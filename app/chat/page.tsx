@@ -11,6 +11,22 @@ import { Button } from "@/components/ui/Button";
 import ReactMarkdown from "react-markdown";
 import { API_CONSTANTS } from "@/lib/api-constants";
 
+// Block javascript: / data: / vbscript: URLs in any markdown link or image
+// the AI emits. Defense against poisoned PDF input working its way into a
+// rendered link via the parsed clinical notes.
+const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
+const sanitizeUrl = (url: string): string => {
+  try {
+    // Resolve relative URLs against the current origin so they aren't
+    // mistakenly classified as having a dangerous protocol.
+    const u = new URL(url, typeof window !== "undefined" ? window.location.origin : "https://localhost");
+    return SAFE_PROTOCOLS.has(u.protocol) ? url : "";
+  } catch {
+    // Couldn't parse — treat as relative/safe
+    return url;
+  }
+};
+
 export default function ChatPage() {
   const router = useRouter();
   const { activeSession, activeSessionId, activePatientId } = usePatient();
@@ -42,8 +58,16 @@ export default function ChatPage() {
 
   const sendMessage = async () => {
     if (!input.trim() || !activeSessionId || isTyping) return;
-    
+
     const userMessage = { id: Date.now().toString(), role: "user" as const, content: input.trim() };
+
+    // Build conversation history from prior turns (everything in `messages`
+    // BEFORE this new user message). Filter to only well-formed turns and
+    // strip non-essential fields the backend doesn't care about.
+    const conversation_history = messages
+      .filter(m => (m.role === "user" || m.role === "assistant") && m.content)
+      .map(m => ({ role: m.role, content: m.content }));
+
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
@@ -51,23 +75,26 @@ export default function ChatPage() {
     try {
       const response = await apiFetch(API_CONSTANTS.CHAT_SESSIONS.replace("{session_id}", activeSessionId), {
         method: "POST",
-        body: JSON.stringify({ question: userMessage.content })
+        body: JSON.stringify({
+          question: userMessage.content,
+          conversation_history,
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to get AI response");
-      
+
       const data = await response.json();
-      setMessages(prev => [...prev, { 
-        id: (Date.now() + 1).toString(), 
-        role: "assistant", 
-        content: data.answer 
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.answer,
       }]);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { 
-        id: (Date.now() + 1).toString(), 
-        role: "assistant", 
-        content: "Sorry, I encountered an error while analyzing the session data. Please try again." 
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Sorry, I encountered an error while analyzing the session data. Please try again.",
       }]);
     } finally {
       setIsTyping(false);
@@ -123,7 +150,7 @@ export default function ChatPage() {
                                     )}>
                                         {msg.role === "assistant" ? (
                                             <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-strong:text-purple-600 prose-strong:font-black">
-                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                                <ReactMarkdown urlTransform={sanitizeUrl}>{msg.content}</ReactMarkdown>
                                             </div>
                                         ) : (
                                             msg.content

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { API_CONSTANTS } from "@/lib/api-constants";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
 
 const renderClinicalItem = (item: any) => {
   if (!item) return "";
@@ -148,12 +149,13 @@ export default function VoiceAgentPage() {
       window.open(url, "_blank");
     } catch (err) {
       console.error(err);
-      alert("Failed to download PDF report.");
+      toast.error("Failed to download PDF report.");
     }
   };
 
   const startIntake = async () => {
     if (!activeSession) return;
+    if (isLoading) return; // double-click guard
     setIsLoading(true);
     try {
       const payload: any = {
@@ -170,18 +172,21 @@ export default function VoiceAgentPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Failed to start intake");
-      
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({} as any));
+        throw new Error(errBody.detail?.message || errBody.detail || "Failed to start intake");
+      }
+
       const data = await response.json();
       if (data.intake_id) {
         setIntakeId(data.intake_id);
       }
-      
+
       setCallStatus('calling');
       setView('active');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to initiate voice agent.");
+      toast.error(err?.message || "Failed to initiate voice agent.");
     } finally {
       setIsLoading(false);
     }

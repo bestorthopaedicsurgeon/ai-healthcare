@@ -1,5 +1,14 @@
+// Backend base URL. Override per environment via NEXT_PUBLIC_API_BASE_URL
+// in .env.local (dev) or Render/Vercel/etc. env config (deploy).
+const BASE_URL =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "https://healthcare-ai-backend-723h.onrender.com";
+
+// Derive the websocket URL from BASE_URL — http -> ws, https -> wss.
+const WS_BASE = BASE_URL.replace(/^http/, "ws");
+
 export const API_CONSTANTS = {
-    BASE_URL: "https://healthcare-ai-backend-723h.onrender.com",
+    BASE_URL,
     
     // Auth related
     AUTH_LOGIN: "/api/v1/auth/login",
@@ -26,7 +35,7 @@ export const API_CONSTANTS = {
     BULK_PARSE_PDF: "/api/v1/bulk/parse-pdf",
     BULK_CONFIRM_PATIENTS: "/api/v1/bulk/confirm-patients",
 
-    WS_EVENTS: "wss://healthcare-ai-backend-723h.onrender.com/api/v1/ws/events",
+    WS_EVENTS: `${WS_BASE}/api/v1/ws/events`,
 
     // Sessions
     SESSIONS_BASE: "/api/v1/sessions",

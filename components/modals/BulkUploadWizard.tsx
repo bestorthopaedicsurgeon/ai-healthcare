@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   X, UploadCloud, FileText, CheckCircle, ChevronRight,
   File as FileIcon, AlertCircle, XCircle, Calendar, AlertTriangle, Check,
@@ -8,7 +9,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { usePatient } from "@/context/PatientContext";
+import { usePatient, ParsedSchedule, ParsedPatientRow, BulkUploadResponse, BulkRowResult } from "@/context/PatientContext";
 import Papa from "papaparse";
 import { toast } from "react-hot-toast";
 
@@ -19,43 +20,24 @@ interface BulkUploadWizardProps {
 
 type UploadMode = null | "csv" | "pdf";
 
-// Shape of a row coming back from POST /bulk/parse-pdf
-interface ParsedPatientRow {
-  row_index: number;
-  time_label: string;
-  appointment_datetime: string | null;
-  patient_name: string | null;
-  patient_dob: string | null;       // ISO YYYY-MM-DD
-  patient_phone: string | null;     // E.164
-  raw_note: string;
-  detected_type: "new" | "followup" | "unclear";
-  detection_reason: string;
-  phone_warning: string | null;
-}
-
-interface NonPatientRow {
-  row_index: number;
-  time_label: string;
-  raw_text: string;
-}
-
-interface ParsedSchedule {
-  appointment_date: string | null;
-  doctor_name: string | null;
-  patient_rows: ParsedPatientRow[];
-  non_patient_rows: NonPatientRow[];
-  parser_warnings: string[];
-}
-
-// Editable patient row used in the PDF "review" step
+// Editable patient row used in the PDF "review" step — extends the
+// shared ParsedPatientRow with surgeon-editable copies of the fields.
 interface EditablePatient extends ParsedPatientRow {
-  include: boolean;          // surgeon can drop a row
-  // overridable fields
+  include: boolean;
   edit_name: string;
   edit_phone: string;
   edit_dob: string;
   edit_type: "new" | "followup";
 }
+
+// CSV-flow row shape — Papa parses the CSV; we tolerate unknown columns.
+type CsvPatientRow = Record<string, string | undefined> & {
+  patient_name?: string;
+  full_name?: string;
+  patient_type?: string;
+  gp_letter_filename?: string;
+  previous_scribe_filename?: string;
+};
 
 export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
   const { uploadBulkPatients, parseSchedulePdf, confirmBulkPatients } = usePatient();
@@ -67,7 +49,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
-  const [parsedPatients, setParsedPatients] = useState<any[]>([]);
+  const [parsedPatients, setParsedPatients] = useState<CsvPatientRow[]>([]);
   const [fileMappings, setFileMappings] = useState<Record<number, { gpLetter: string; previousScribe: string }>>({});
 
   // PDF-flow state
@@ -78,15 +60,18 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
 
   // Shared submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any | null>(null);
+  const [uploadResult, setUploadResult] = useState<BulkUploadResponse | null>(null);
 
   const csvInputRef = useRef<HTMLInputElement>(null);
   const pdfScheduleInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset everything when the modal closes
+  // Reset everything when the modal closes. The 300ms delay matches the
+  // exit animation so state doesn't flash before fadeout. Returning a
+  // cleanup that clears the timer prevents leaks if the user re-opens
+  // within the 300ms window (rapid close → open).
   useEffect(() => {
     if (!isOpen) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setMode(null);
         setStep(1);
         setCsvFile(null);
@@ -100,6 +85,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
         setIsSubmitting(false);
         setUploadResult(null);
       }, 300);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -167,6 +153,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
 
   const handleCsvSubmit = async () => {
     if (!csvFile) return;
+    if (isSubmitting) return; // double-click / double-submit guard
     setIsSubmitting(true);
     try {
       const updatedData = parsedPatients.map((patient, index) => ({
@@ -188,6 +175,8 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
       setStep(3);
     } catch (error: any) {
       toast.error(error.message || "Failed to submit bulk upload");
+    } finally {
+      // Always clear submit state so the X close button reappears + reruns work
       setIsSubmitting(false);
     }
   };
@@ -206,11 +195,20 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
 
   const handleParsePdf = async () => {
     if (!scheduleFile) return;
+    if (isParsing) return; // guard against double-click
+    // If the user has already parsed this exact file and made edits, going
+    // Back then "Next" again should preserve those edits, not silently wipe
+    // them. We only re-parse when there are no existing editable rows OR
+    // the file reference changed.
+    if (parsedSchedule && editableRows.length > 0) {
+      // Same file + we already have a parsed result — just advance.
+      setStep(2);
+      return;
+    }
     setIsParsing(true);
     try {
-      const result: ParsedSchedule = await parseSchedulePdf(scheduleFile);
+      const result = await parseSchedulePdf(scheduleFile) as ParsedSchedule;
       setParsedSchedule(result);
-      // Build editable rows
       const rows: EditablePatient[] = result.patient_rows.map(r => ({
         ...r,
         include: true,
@@ -227,7 +225,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
       }
       setStep(2);
     } catch (e: any) {
-      toast.error(e.message || "Failed to parse schedule PDF");
+      toast.error(e?.message || "Failed to parse schedule PDF");
     } finally {
       setIsParsing(false);
     }
@@ -237,29 +235,49 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
     setEditableRows(prev => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
 
+  // Phone-warning count across included rows — surfaced as a banner
+  const phoneWarningCount = editableRows.filter(r => r.include && r.phone_warning).length;
+  const uncheckedCount = editableRows.filter(r => !r.include).length;
+
   const handlePdfConfirm = async () => {
+    if (isSubmitting) return; // double-click / double-submit guard
+
     const included = editableRows.filter(r => r.include);
     if (included.length === 0) {
       toast.error("No patients selected to confirm");
       return;
     }
-    // Validate: name + appointment required for all; phone required for new
-    const invalid = included.find(r => {
-      if (!r.edit_name.trim()) return true;
-      if (!r.appointment_datetime) return true;
-      if (r.edit_type === "new" && !r.edit_phone.trim()) return true;
-      return false;
-    });
-    if (invalid) {
-      toast.error(`Row "${invalid.edit_name || invalid.time_label}": missing required fields`);
-      return;
+
+    // Client-side validation: name + appointment_datetime required;
+    // phone required for new; appointment must not be in the past
+    // (backend will reject that via the expires_at < now guard).
+    const nowMs = Date.now();
+    for (const r of included) {
+      if (!r.edit_name.trim()) {
+        toast.error(`Row "${r.time_label}": patient name is required`);
+        return;
+      }
+      if (!r.appointment_datetime) {
+        toast.error(`Row "${r.edit_name}": appointment time is required`);
+        return;
+      }
+      if (new Date(r.appointment_datetime).getTime() < nowMs) {
+        toast.error(`Row "${r.edit_name}": appointment is in the past — please reschedule`);
+        return;
+      }
+      if (r.edit_type === "new" && !r.edit_phone.trim()) {
+        toast.error(`Row "${r.edit_name}": phone is required for new patients`);
+        return;
+      }
     }
+
     setIsSubmitting(true);
     try {
       const payload = included.map(r => ({
         patient_name: r.edit_name.trim(),
         patient_type: r.edit_type,
-        appointment_datetime: r.appointment_datetime,
+        // Non-null guaranteed by validation above
+        appointment_datetime: r.appointment_datetime!,
         patient_phone: r.edit_phone.trim() || null,
         patient_dob: r.edit_dob.trim() || null,
         notes: r.raw_note || null,
@@ -267,10 +285,12 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
       }));
       const response = await confirmBulkPatients(payload);
       setUploadResult(response);
-      toast.success("Patients created successfully!");
+      toast.success(`${response.successful} of ${response.total_rows} patients created`);
       setStep(3);
     } catch (e: any) {
-      toast.error(e.message || "Failed to confirm patients");
+      toast.error(e?.message || "Failed to confirm patients");
+    } finally {
+      // Always clear, even on success, so the X button reappears
       setIsSubmitting(false);
     }
   };
@@ -494,8 +514,38 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                     </div>
                   </div>
 
-                  {/* Editable patient rows */}
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Parser warnings from the backend (any) */}
+                  {parsedSchedule.parser_warnings.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                      <p className="text-xs font-black uppercase tracking-widest text-amber-700 flex items-center gap-2">
+                        <AlertTriangle size={14} /> Parser warnings
+                      </p>
+                      <ul className="text-xs text-amber-800 list-disc list-inside space-y-0.5">
+                        {parsedSchedule.parser_warnings.map((w, i) => <li key={i}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Aggregate review summary — visible counts so issues aren't buried */}
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 font-bold">
+                      ✓ {editableRows.filter(r => r.include).length} of {editableRows.length} included
+                    </span>
+                    {uncheckedCount > 0 && (
+                      <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-bold">
+                        {uncheckedCount} unchecked
+                      </span>
+                    )}
+                    {phoneWarningCount > 0 && (
+                      <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-bold flex items-center gap-1.5">
+                        <AlertTriangle size={12} /> {phoneWarningCount} phone issue{phoneWarningCount > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Editable patient rows — horizontally scrollable on small screens */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+                    <div className="min-w-[800px]">
                     <div className="bg-gray-50/50 border-b border-gray-100 px-5 py-3 grid grid-cols-12 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       <div className="col-span-1">Inc.</div>
                       <div className="col-span-2">Time</div>
@@ -575,6 +625,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                         No patient rows detected in the PDF.
                       </div>
                     )}
+                    </div>
                   </div>
 
                   {/* Non-patient rows audit panel */}
@@ -695,7 +746,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                     <div className="space-y-6">
                       <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-3">Ingestion Details</h4>
                       <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                        {uploadResult.results?.map((row: any, i: number) => (
+                        {uploadResult.results?.map((row: BulkRowResult, i: number) => (
                           <div
                             key={i}
                             className={`border rounded-2xl p-5 flex flex-col md:flex-row md:items-start gap-4 transition-all hover:shadow-sm ${
@@ -734,6 +785,15 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                                     </span>
                                   )}
                                   <div className="flex flex-wrap gap-2 mt-1">
+                                    {row.patient_id && (
+                                      <Link
+                                        href={`/patients/${row.patient_id}`}
+                                        onClick={onClose}
+                                        className="text-[10px] text-accent-primary font-bold font-mono bg-accent-primary/5 hover:bg-accent-primary/15 px-2 py-0.5 rounded border border-accent-primary/20 transition-colors"
+                                      >
+                                        Open patient →
+                                      </Link>
+                                    )}
                                     {row.session_id && <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">Session: {row.session_id.slice(0, 8)}...</span>}
                                     {row.referral_id && <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">Referral: {row.referral_id.slice(0, 8)}...</span>}
                                     {row.intake_id && <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">Intake: {row.intake_id.slice(0, 8)}...</span>}
@@ -771,7 +831,23 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
             <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between gap-3">
               <div>
                 {step === 1 && mode !== null && (
-                  <Button variant="outline" onClick={() => setMode(null)}>← Back to method</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Switching modes — clear everything from the previous mode
+                      // so stale files / parsed data don't follow the user across.
+                      setMode(null);
+                      setCsvFile(null);
+                      setPdfFiles([]);
+                      setParsedPatients([]);
+                      setFileMappings({});
+                      setScheduleFile(null);
+                      setParsedSchedule(null);
+                      setEditableRows([]);
+                    }}
+                  >
+                    ← Back to method
+                  </Button>
                 )}
               </div>
               <div className="flex gap-3">

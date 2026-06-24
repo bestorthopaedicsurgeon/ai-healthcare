@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     persistAuth(data.access_token, data.physician);
     if (redirect) {
-      router.push("/triage");
+      router.push("/dashboard");
     }
   };
 
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     persistAuth(data.access_token, data.physician);
-    router.push("/triage");
+    router.push("/dashboard");
   };
 
   const logout = () => {

@@ -132,16 +132,67 @@ export default function PatientProfilePage() {
                         </div>
                     </div>
 
-                    {/* Quick Summary / Alert (Placeholder) */}
-                    <div className="mt-10 p-5 bg-blue-50/50 border border-blue-100 rounded-3xl flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-blue-500 shadow-sm">
-                            <AlertCircle size={20} />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-xs font-bold text-blue-900">Patient Readiness Summary</p>
-                            <p className="text-[11px] text-blue-600 font-medium mt-0.5">This patient has no active alerts. Recommended for a routine follow-up Scribe session.</p>
-                        </div>
-                    </div>
+                    {/* Smart Readiness banner — surfaces missing-referral state for
+                        patients created via the bulk PDF flow (which doesn't attach
+                        GP letters at creation time). */}
+                    {(() => {
+                        const sessionsForThis = getSessionsForPatient(currentPatient.full_name);
+                        const activeSession = sessionsForThis.find(s => !isExpired(s.expires_at));
+                        const missingReferral = activeSession && !activeSession.referral_id;
+                        const hasNoSession = sessionsForThis.length === 0;
+
+                        if (missingReferral) {
+                            return (
+                                <div className="mt-10 p-5 bg-amber-50/70 border border-amber-200 rounded-3xl flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                                        <AlertCircle size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-amber-900">GP referral letter missing</p>
+                                        <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+                                            This patient was created via bulk upload without a GP letter attached.
+                                            Triage and the AI call use the letter — upload it from the Triage workspace.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setActiveSessionId(activeSession.session_id);
+                                            router.push("/triage");
+                                        }}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors shrink-0"
+                                    >
+                                        Upload GP letter →
+                                    </button>
+                                </div>
+                            );
+                        }
+
+                        if (hasNoSession) {
+                            return (
+                                <div className="mt-10 p-5 bg-gray-50 border border-gray-100 rounded-3xl flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-gray-500 shadow-sm">
+                                        <AlertCircle size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-gray-900">No sessions yet</p>
+                                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">Start a new session to unlock triage, voice intake, and scribe tools.</p>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="mt-10 p-5 bg-emerald-50/70 border border-emerald-100 rounded-3xl flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm">
+                                    <AlertCircle size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-bold text-emerald-900">Patient is set up and ready</p>
+                                    <p className="text-[11px] text-emerald-700 font-medium mt-0.5">All required documents are in place.</p>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </motion.div>
 
                 {/* Workspace Redirect Warning (if tools locked) */}
