@@ -21,7 +21,7 @@ interface AuthContextType {
   setShowReloginModal: (show: boolean) => void;
   login: (email: string, password: string, redirect?: boolean) => Promise<void>;
   register: (payload: any) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   apiFetch: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
@@ -135,7 +135,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/dashboard");
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Hit /auth/logout so the backend can clear the HttpOnly cookies.
+    // JS can't delete HttpOnly cookies on its own — the server-set
+    // Set-Cookie response with Max-Age=0 is the only way to drop them.
+    try {
+      await fetch(`${API_CONSTANTS.BASE_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Even if the server call fails (offline), still clear local state.
+    }
     clearAuth();
     router.push("/login");
   };
@@ -178,7 +189,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return refreshInFlight.current;
   }, []);
 
-  // Internal fetch with auth header + auto-refresh on 401.
+  // Internal fetch helper. Always sends `credentials: 'include'` so the
+  // browser attaches the HttpOnly auth cookie when the backend has set it.
+  // Also still sends the Bearer header during the cookie-migration window
+  // so the call works whether the backend has migrated or not (the new
+  // backend deps.py prefers header over cookie when both are present).
   const doFetch = useCallback(
     async (url: string, options: RequestInit, accessToken: string | null): Promise<Response> => {
       const isFormData = options.body instanceof FormData;
@@ -191,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return fetch(
         url.startsWith("http") ? url : `${API_CONSTANTS.BASE_URL}${url}`,
-        { ...options, headers },
+        { ...options, headers, credentials: "include" },
       );
     },
     [],
