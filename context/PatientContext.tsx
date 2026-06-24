@@ -57,6 +57,8 @@ interface PatientContextType {
   isSessionModalOpen: boolean;
   sessionRedirectPath: string | null;
   uploadBulkPatients: (formData: FormData) => Promise<any>;
+  parseSchedulePdf: (pdfFile: File) => Promise<any>;
+  confirmBulkPatients: (patients: any[]) => Promise<any>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -166,6 +168,36 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to upload bulk patients");
+    await refreshPatients();
+    await refreshSessions();
+    return data;
+  };
+
+  // PDF bulk flow (new) — step 1: send the schedule PDF, get back a
+  // structured patient list + non-patient rows. NO DB writes yet.
+  const parseSchedulePdf = async (pdfFile: File) => {
+    const formData = new FormData();
+    formData.append("schedule", pdfFile);
+    const res = await apiFetch(API_CONSTANTS.BULK_PARSE_PDF, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to parse schedule PDF");
+    return data;
+  };
+
+  // PDF bulk flow (new) — step 2: send the surgeon-confirmed patient list
+  // to create Patients + Sessions + (for new patients) scheduled IntakeRecords.
+  // GP letters are uploaded per-patient later via /triage/referrals/upload.
+  const confirmBulkPatients = async (patients: any[]) => {
+    const res = await apiFetch(API_CONSTANTS.BULK_CONFIRM_PATIENTS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patients }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to confirm bulk patients");
     await refreshPatients();
     await refreshSessions();
     return data;
@@ -345,6 +377,8 @@ const [sessionData, setSessionData] = useState<any | null>(null);
       isSessionModalOpen,
       sessionRedirectPath,
       uploadBulkPatients,
+      parseSchedulePdf,
+      confirmBulkPatients,
       sessionData,
       isSessionDataLoading,
       refreshSessionData

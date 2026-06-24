@@ -18,17 +18,27 @@ export const API_CONSTANTS = {
 
     // Patients
     PATIENTS_BASE: "/api/v1/patients",
+
+    // Bulk (CSV — legacy, still supported)
     BULK_UPLOAD: "/api/v1/bulk/upload",
+
+    // Bulk (PDF — new 2-step flow)
+    BULK_PARSE_PDF: "/api/v1/bulk/parse-pdf",
+    BULK_CONFIRM_PATIENTS: "/api/v1/bulk/confirm-patients",
+
     WS_EVENTS: "wss://healthcare-ai-backend-723h.onrender.com/api/v1/ws/events",
-    
+
     // Sessions
     SESSIONS_BASE: "/api/v1/sessions",
+    SESSIONS_DATA: "/api/v1/sessions/{session_id}/data",
+    SESSIONS_PREVIOUS_SCRIBE: "/api/v1/sessions/{session_id}/previous-scribe",
 
     // Intake (Voice Agent)
     INTAKE_START: "/api/v1/intake/start",
     INTAKE_WS_URL: "/api/v1/intake/{intake_id}/websocket-url",
     INTAKE_MESSAGE: "/api/v1/intake/{intake_id}/message",
     INTAKE_RESULT: "/api/v1/intake/{intake_id}/result",
+    INTAKE_STATUS: "/api/v1/intake/{intake_id}/status",
     INTAKE_COMPLETE: "/api/v1/intake/{intake_id}/complete?conversation_id={conversation_id}",
     INTAKE_FINALIZE: "/api/v1/intake/{intake_id}/finalize",
     INTAKE_REPORT: "/api/v1/intake/{intake_id}/report",
