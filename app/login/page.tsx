@@ -249,14 +249,22 @@ function SocialButton({
   icon: "google" | "microsoft";
   label: string;
 }) {
+  // OAuth providers not yet wired (real integration requires Google Cloud /
+  // Microsoft Entra setup + backend callback routes). Button is rendered
+  // disabled with a "Coming soon" hint so users aren't misled.
   return (
     <button
       type="button"
-      className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white text-sm font-medium text-[#28030f] hover:bg-[#f9f4f1] transition-colors flex items-center justify-center gap-2.5"
+      disabled
+      title="Coming soon"
+      className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white text-sm font-medium text-[#28030f]/60 cursor-not-allowed flex items-center justify-center gap-2.5 relative group"
     >
       {icon === "google" && <GoogleIcon />}
       {icon === "microsoft" && <MicrosoftIcon />}
-      {label}
+      <span>{label}</span>
+      <span className="absolute right-3 text-[9px] font-bold uppercase tracking-widest text-gray-400">
+        Soon
+      </span>
     </button>
   );
 }

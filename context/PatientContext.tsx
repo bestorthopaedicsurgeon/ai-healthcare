@@ -33,6 +33,67 @@ export interface Session {
     created_at: string;
 }
 
+// --- Bulk PDF flow types (shared with BulkUploadWizard) ---
+
+export interface ParsedPatientRow {
+    row_index: number;
+    time_label: string;
+    appointment_datetime: string | null;
+    patient_name: string | null;
+    patient_dob: string | null;
+    patient_phone: string | null;
+    raw_note: string;
+    detected_type: "new" | "followup" | "unclear";
+    detection_reason: string;
+    phone_warning: string | null;
+}
+
+export interface NonPatientRow {
+    row_index: number;
+    time_label: string;
+    raw_text: string;
+}
+
+export interface ParsedSchedule {
+    appointment_date: string | null;
+    doctor_name: string | null;
+    patient_rows: ParsedPatientRow[];
+    non_patient_rows: NonPatientRow[];
+    parser_warnings: string[];
+}
+
+export interface ConfirmedPatientPayload {
+    patient_name: string;
+    patient_type: "new" | "followup";
+    appointment_datetime: string;
+    patient_phone: string | null;
+    patient_dob: string | null;
+    notes: string | null;
+    source_row_index?: number;
+}
+
+export interface BulkRowResult {
+    row_index: number;
+    patient_name: string;
+    patient_type: "new" | "followup";
+    success: boolean;
+    patient_id?: string | null;
+    session_id?: string | null;
+    referral_id?: string | null;
+    intake_id?: string | null;
+    scheduled_call_at?: string | null;
+    error?: string | null;
+    missing_fields?: string[];
+}
+
+export interface BulkUploadResponse {
+    bulk_upload_id: string;
+    total_rows: number;
+    successful: number;
+    failed: number;
+    results: BulkRowResult[];
+}
+
 interface PatientContextType {
   patients: Patient[];
   sessions: Session[];
@@ -56,7 +117,9 @@ interface PatientContextType {
   closeSessionModal: () => void;
   isSessionModalOpen: boolean;
   sessionRedirectPath: string | null;
-  uploadBulkPatients: (formData: FormData) => Promise<any>;
+  uploadBulkPatients: (formData: FormData) => Promise<BulkUploadResponse>;
+  parseSchedulePdf: (pdfFile: File) => Promise<ParsedSchedule>;
+  confirmBulkPatients: (patients: ConfirmedPatientPayload[]) => Promise<BulkUploadResponse>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -159,7 +222,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     return data;
   };
 
-  const uploadBulkPatients = async (formData: FormData) => {
+  const uploadBulkPatients = async (formData: FormData): Promise<BulkUploadResponse> => {
     const res = await apiFetch(API_CONSTANTS.BULK_UPLOAD, {
         method: "POST",
         body: formData
@@ -168,7 +231,39 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     if (!res.ok) throw new Error(data.detail || "Failed to upload bulk patients");
     await refreshPatients();
     await refreshSessions();
-    return data;
+    return data as BulkUploadResponse;
+  };
+
+  // PDF bulk flow (new) — step 1: send the schedule PDF, get back a
+  // structured patient list + non-patient rows. NO DB writes yet.
+  const parseSchedulePdf = async (pdfFile: File): Promise<ParsedSchedule> => {
+    const formData = new FormData();
+    formData.append("schedule", pdfFile);
+    const res = await apiFetch(API_CONSTANTS.BULK_PARSE_PDF, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to parse schedule PDF");
+    return data as ParsedSchedule;
+  };
+
+  // PDF bulk flow (new) — step 2: send the surgeon-confirmed patient list
+  // to create Patients + Sessions + (for new patients) scheduled IntakeRecords.
+  // GP letters are uploaded per-patient later via /triage/referrals/upload.
+  const confirmBulkPatients = async (
+    patients: ConfirmedPatientPayload[],
+  ): Promise<BulkUploadResponse> => {
+    const res = await apiFetch(API_CONSTANTS.BULK_CONFIRM_PATIENTS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patients }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to confirm bulk patients");
+    await refreshPatients();
+    await refreshSessions();
+    return data as BulkUploadResponse;
   };
 
   const setScribeStatus = (patientId: string, status: 'idle' | 'active' | 'finished') => {
@@ -222,26 +317,64 @@ const [sessionData, setSessionData] = useState<any | null>(null);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
-    let reconnectTimer: NodeJS.Timeout;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    let cancelled = false;
+    // Exponential backoff: 5s, 10s, 20s, 40s, 80s (cap). After 5 failures
+    // we stop trying — the user has to refresh / re-login.
+    let backoffMs = 5_000;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    const MAX_BACKOFF_MS = 80_000;
 
-    const connectWebSocket = () => {
-        if (!token) return;
-        
-        // Ensure proper websocket protocol
-        const wsUrl = `${API_CONSTANTS.WS_EVENTS}?token=${token}`;
+    const connectWebSocket = async () => {
+        if (cancelled || !token) return;
+
+        // 1) Exchange the long-lived JWT for a one-shot WS ticket so the
+        //    JWT never lands in proxy/CDN access logs via the WS URL.
+        let ticket: string | null = null;
+        try {
+            const res = await fetch(
+                `${API_CONSTANTS.BASE_URL}${API_CONSTANTS.AUTH_WS_TICKET}`,
+                {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+            );
+            if (res.ok) {
+                ticket = (await res.json()).ticket;
+            } else if (process.env.NODE_ENV !== "production") {
+                console.warn("ws-ticket fetch failed, falling back to legacy ?token=");
+            }
+        } catch {
+            // Network blip — fall back to legacy below
+        }
+
+        const wsUrl = ticket
+            ? `${API_CONSTANTS.WS_EVENTS}?ticket=${ticket}`
+            : `${API_CONSTANTS.WS_EVENTS}?token=${token}`; // legacy fallback during deploy
+
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log('WebSocket connected for realtime events');
+            // Reset backoff on successful connect
+            backoffMs = 5_000;
+            attempts = 0;
+            if (process.env.NODE_ENV !== "production") {
+                console.log("WebSocket connected for realtime events");
+            }
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = (msg) => {
             try {
-                const data = JSON.parse(event.data);
-                console.log('WS Event:', data);
-                
-                // Handle different event types
-                switch (data.type) {
+                const payload = JSON.parse(msg.data);
+                // Backend sends { event, data, ts } — NOT { type, ... }
+                const eventName: string | undefined = payload.event;
+                if (process.env.NODE_ENV !== 'production') {
+                    // Avoid PHI in production console logs
+                    console.log('WS Event:', eventName);
+                }
+
+                switch (eventName) {
                     case 'ws.connected':
                         // Initial connection confirmed
                         break;
@@ -276,8 +409,8 @@ const [sessionData, setSessionData] = useState<any | null>(null);
                         refreshSessionData();
                         break;
                     default:
-                        // If there are other events like intake.status we can trigger a silent refresh
-                        if (data.type?.startsWith('intake.') || data.type?.startsWith('categorization.')) {
+                        // Any other intake.* or categorization.* event still triggers a silent refresh
+                        if (eventName?.startsWith('intake.') || eventName?.startsWith('categorization.')) {
                             refreshPatients();
                             refreshSessions();
                             refreshSessionData();
@@ -290,15 +423,23 @@ const [sessionData, setSessionData] = useState<any | null>(null);
         };
 
         ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            // Try to reconnect if we still have a token
-            if (token) {
-                reconnectTimer = setTimeout(connectWebSocket, 5000);
+            if (cancelled || !token) return;
+            attempts += 1;
+            if (attempts > MAX_ATTEMPTS) {
+                if (process.env.NODE_ENV !== "production") {
+                    console.warn(`WS reconnect gave up after ${MAX_ATTEMPTS} attempts`);
+                }
+                return;
             }
+            const delay = backoffMs;
+            backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+            reconnectTimer = setTimeout(connectWebSocket, delay);
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            if (process.env.NODE_ENV !== "production") {
+                console.error("WebSocket error:", error);
+            }
             ws?.close();
         };
     };
@@ -308,6 +449,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     }
 
     return () => {
+        cancelled = true;
         if (reconnectTimer) clearTimeout(reconnectTimer);
         if (ws) {
             ws.onclose = null;
@@ -345,6 +487,8 @@ const [sessionData, setSessionData] = useState<any | null>(null);
       isSessionModalOpen,
       sessionRedirectPath,
       uploadBulkPatients,
+      parseSchedulePdf,
+      confirmBulkPatients,
       sessionData,
       isSessionDataLoading,
       refreshSessionData

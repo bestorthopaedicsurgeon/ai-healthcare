@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_CONSTANTS } from "@/lib/api-constants";
+import { toast } from "react-hot-toast";
 
 import { useRouter } from "next/navigation";
 
@@ -32,13 +33,27 @@ export default function TriagePage() {
   const [isLoadingReferral, setIsLoadingReferral] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<'document' | 'raw'>('document');
+  // Manual form is prefilled from the active session (if any) — never with
+  // mock data, because this UI ships to production.
   const [manualFormData, setManualFormData] = useState({
-    patient_name: "Rabi ahmed",
-    patient_dob: "1990-01-01",
-    patient_phone: "+61412345678",
+    patient_name: "",
+    patient_dob: "",
+    patient_phone: "",
     source_type: "email",
-    raw_content: "Patient presents with severe left knee pain for 6 months. Requesting orthopaedic consult."
+    raw_content: "",
   });
+
+  // Whenever the active session changes, seed the manual form from its data.
+  useEffect(() => {
+    if (activeSession) {
+      setManualFormData(prev => ({
+        ...prev,
+        patient_name: activeSession.patient_name || "",
+        patient_dob: activeSession.patient_dob || "",
+        patient_phone: activeSession.patient_phone || "",
+      }));
+    }
+  }, [activeSession?.session_id, activeSession?.patient_name, activeSession?.patient_dob, activeSession?.patient_phone]);
 
   // Derive referralData from centralized sessionData when available
   useEffect(() => {
@@ -66,7 +81,7 @@ export default function TriagePage() {
       window.open(objectUrl, '_blank');
     } catch (err) {
       console.error("Document viewing error:", err);
-      alert("Failed to load secure document.");
+      toast.error("Failed to load secure document.");
     }
   };
 
@@ -87,7 +102,7 @@ export default function TriagePage() {
       await refreshSessionData();
     } catch (err) {
       console.error("Submit error:", err);
-      alert("Failed to triage manual data. Please try again.");
+      toast.error("Failed to triage manual data. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -116,7 +131,7 @@ export default function TriagePage() {
       await refreshSessionData();
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Failed to triage referral. Please try again.");
+      toast.error("Failed to triage referral. Please try again.");
     } finally {
       setIsUploading(false);
     }

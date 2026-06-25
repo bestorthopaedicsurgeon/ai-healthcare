@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { API_CONSTANTS } from "@/lib/api-constants";
 import ReactMarkdown from "react-markdown";
+import { toast } from "react-hot-toast";
 
 export default function ScribePage() {
   const { 
@@ -60,7 +61,7 @@ export default function ScribePage() {
       window.open(objectUrl, '_blank');
     } catch (err) {
       console.error("Document viewing error:", err);
-      alert("Failed to load secure document.");
+      toast.error("Failed to load secure document.");
     }
   };
 
@@ -68,6 +69,7 @@ export default function ScribePage() {
 
   const handleApprove = async () => {
     if (!sessionResults?.consultation_id) return;
+    if (isApproving) return; // double-click guard
     setIsApproving(true);
     try {
       const response = await apiFetch(`/api/v1/scribe/consultations/${sessionResults.consultation_id}/approve`, {
@@ -76,39 +78,44 @@ export default function ScribePage() {
       });
       if (!response.ok) throw new Error("Approval failed");
       setSessionResults({ ...sessionResults, status: 'approved' });
-      alert("Documentation approved and finalized.");
+      toast.success("Documentation approved and finalized.");
     } catch (err) {
       console.error(err);
-      alert("Failed to approve documentation.");
+      toast.error("Failed to approve documentation.");
     } finally {
       setIsApproving(false);
     }
   };
 
   const uploadAudio = async (audioBlob: Blob) => {
-    if (!activeSession) return;
+    if (!activeSession || !activeSessionId) return;
     setIsUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", audioBlob, "consultation.webm");
       formData.append("patient_name", activeSession.patient_name);
       formData.append("primary_complaint", activeSession.notes || "Recorded Consultation");
-      formData.append("session_id", activeSessionId!);
+      formData.append("session_id", activeSessionId);
 
       const response = await apiFetch(API_CONSTANTS.SCRIBE_CONSULTATIONS_UPLOAD_AUDIO, {
-
         method: "POST",
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({} as any));
+        throw new Error(errBody.detail || `Upload failed (${response.status})`);
+      }
 
       const results = await response.json();
       setSessionResults(results);
-      setScribeStatus(activeSessionId!, 'finished');
-    } catch (err) {
+      // Only mark finished AFTER a successful upload + persisted results
+      setScribeStatus(activeSessionId, 'finished');
+    } catch (err: any) {
       console.error("Upload error:", err);
-      alert("Failed to upload audio. Please try again.");
+      toast.error(err?.message || "Failed to upload audio. Please try again.");
+      // Revert status to 'active' so the recorder UI is shown again
+      setScribeStatus(activeSessionId, 'active');
     } finally {
       setIsUploading(false);
     }
@@ -170,7 +177,9 @@ export default function ScribePage() {
     }
     setIsRecording(false);
     setIsPaused(false);
-    if (activeSessionId) setScribeStatus(activeSessionId, 'finished');
+    // NOTE: do NOT set 'finished' here — the recorder.onstop handler kicks off
+    // uploadAudio() which only flips to 'finished' on a successful upload.
+    // Setting it here would render an empty results page if upload fails.
     if (timerRef.current) clearInterval(timerRef.current);
     setTime(0);
   };

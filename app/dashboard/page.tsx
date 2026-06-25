@@ -33,12 +33,16 @@ export default function DashboardPage() {
     p.reference_number.toString().includes(search)
   );
 
-  const activeSessions = sessions.filter(s => new Date(s.expires_at) > new Date());
+  const now = new Date();
+  const activeSessions = sessions.filter(s => new Date(s.expires_at) > now);
+  // Real count: any session created today (regardless of expiry).
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sessionsToday = sessions.filter(s => new Date(s.created_at) >= startOfToday).length;
 
   const stats = [
     { label: "Total Patients", value: patients.length, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
     { label: "Active Sessions", value: activeSessions.length, icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Consultations Today", value: "8", icon: Calendar, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Sessions Today", value: sessionsToday, icon: Calendar, color: "text-purple-600", bg: "bg-purple-50" },
   ];
 
   const handleSelectSession = (sessionId: string) => {
