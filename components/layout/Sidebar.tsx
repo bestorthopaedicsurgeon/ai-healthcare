@@ -4,25 +4,19 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Settings, 
   HelpCircle,
   Plus,
   ChevronDown,
-  History,
-  Clock,
   LogOut,
   Search,
   Activity,
-  Play,
-  User,
   LayoutDashboard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePatient, Patient, Session } from "@/context/PatientContext";
+import { usePatient, Patient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
 import { BulkUploadWizard } from "../modals/BulkUploadWizard";
-import { CreateSessionModal } from "../modals/CreateSessionModal";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -31,11 +25,8 @@ export function Sidebar() {
     isSidebarCollapsed, 
     patients, 
     activePatientId, 
-    activeSessionId,
     setActivePatientId,
     setActiveSessionId,
-    getSessionsForPatient,
-    openSessionModal,
     isLoading 
   } = usePatient();
   const { physician, logout } = useAuth();
@@ -43,7 +34,6 @@ export function Sidebar() {
   const [search, setSearch] = useState("");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
-  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
 
   const filteredPatients = patients.filter(p => 
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -71,6 +61,7 @@ export function Sidebar() {
 
   const handleGoToDashboard = () => {
     setActiveSessionId(null);
+    setActivePatientId(null);
     router.push("/dashboard");
   };
 
@@ -138,7 +129,6 @@ export function Sidebar() {
             </div>
         ) : filteredPatients.map((patient) => {
             const isSelected = activePatientId === patient.id;
-            const patientSessions = getSessionsForPatient(patient.full_name);
             
             return (
                 <div key={patient.id} className="space-y-2">
@@ -171,65 +161,8 @@ export function Sidebar() {
                                     REF-{patient.reference_number}
                                 </span>
                             </div>
-                            <div className={cn("transition-transform duration-500", isSelected ? "rotate-180 text-accent-primary" : "text-sidebar-fg/10")}>
-                                <ChevronDown size={14} />
-                            </div>
                         </div>
                     </button>
-
-                    <AnimatePresence>
-                        {isSelected && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden bg-black/20 rounded-[24px] border border-white/[0.03] ml-2"
-                            >
-                                <div className="p-4 space-y-4">
-                                    <button 
-                                        onClick={() => openSessionModal("/scribe")}
-                                        className="w-full flex items-center justify-center gap-2 py-3 bg-white/[0.05] text-white hover:bg-accent-primary rounded-xl text-xs font-bold transition-all active:scale-95 group"
-                                    >
-                                        <Plus size={14} className="group-hover:rotate-90 transition-transform" /> Start Consultation
-                                    </button>
-
-                                    <div className="space-y-1.5">
-                                        <div className="text-[9px] font-black text-sidebar-fg/10 uppercase tracking-widest mb-3 px-1">Case History</div>
-                                        {patientSessions.length === 0 ? (
-                                             <p className="text-[10px] text-sidebar-fg/20 italic px-2 py-2">No previous visits</p>
-                                        ) : patientSessions.slice(0, 3).map(session => (
-                                            <button
-                                                key={session.session_id}
-                                                onClick={() => setActiveSessionId(session.session_id)}
-                                                className={cn(
-                                                    "w-full flex items-center justify-between p-2.5 rounded-xl transition-all border",
-                                                    activeSessionId === session.session_id
-                                                        ? "bg-white/[0.03] border-white/5 text-white"
-                                                        : "bg-transparent border-transparent text-sidebar-fg/40 hover:bg-white/[0.02]"
-                                                )}
-                                            >
-                                                <div className="flex flex-col gap-0.5 min-w-0">
-                                                    <span className="text-[10px] font-bold truncate">
-                                                        {new Date(session.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                    </span>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className={cn(
-                                                            "w-1 h-1 rounded-full animate-pulse",
-                                                            isExpired(session.expires_at) ? "bg-sidebar-fg/20" : "bg-emerald-500"
-                                                        )} />
-                                                        <span className="text-[9px] font-bold uppercase opacity-40">
-                                                            {isExpired(session.expires_at) ? "Archived" : "Live Session"}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                {activeSessionId === session.session_id && <Play size={10} fill="currentColor" className="text-accent-primary" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </div>
             );
         })}

@@ -90,39 +90,41 @@ export function SessionHeader() {
         </div>
 
         {/* Global Tools Navigation (TABS) - Intercepts if no session */}
-        <nav className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-xl border border-gray-100 shadow-sm">
-          {displayedTools.map((tool) => {
-            const isActive = pathname.startsWith(tool.href);
+        {!isDashboard && (
+          <nav className="flex items-center gap-1 p-1 bg-gray-100/50 rounded-xl border border-gray-100 shadow-sm">
+            {displayedTools.map((tool) => {
+              const isActive = pathname.startsWith(tool.href);
 
-            return (
-              <button
-                key={tool.id}
-                onClick={() => {
-                   if (!activeSession) {
-                       openSessionModal(tool.href);
-                   } else {
-                       router.push(tool.href);
-                   }
-                }}
-                className={cn(
-                  "relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold",
-                  isActive 
-                    ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5" 
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
-                )}
-              >
-                <tool.icon size={14} className={cn(isActive ? tool.color : "text-gray-400")} />
-                <span>{tool.label}</span>
-                {isActive && (
-                    <motion.div 
-                        layoutId="active-nav-glow" 
-                        className="absolute inset-0 bg-white/50 blur-sm rounded-lg -z-10" 
-                    />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => {
+                     if (!activeSession) {
+                         openSessionModal(tool.href);
+                     } else {
+                         router.push(tool.href);
+                     }
+                  }}
+                  className={cn(
+                    "relative flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-xs font-bold",
+                    isActive 
+                      ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5" 
+                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+                  )}
+                >
+                  <tool.icon size={14} className={cn(isActive ? tool.color : "text-gray-400")} />
+                  <span>{tool.label}</span>
+                  {isActive && (
+                      <motion.div 
+                          layoutId="active-nav-glow" 
+                          className="absolute inset-0 bg-white/50 blur-sm rounded-lg -z-10" 
+                      />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-2">

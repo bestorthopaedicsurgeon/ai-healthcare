@@ -20,6 +20,22 @@ interface BulkUploadWizardProps {
 
 type UploadMode = null | "csv" | "pdf";
 
+const formatDatetimeForInput = (dtStr: string | null): string => {
+  if (!dtStr) return "";
+  try {
+    const d = new Date(dtStr);
+    if (isNaN(d.getTime())) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return "";
+  }
+};
+
 // Editable patient row used in the PDF "review" step — extends the
 // shared ParsedPatientRow with surgeon-editable copies of the fields.
 interface EditablePatient extends ParsedPatientRow {
@@ -28,6 +44,7 @@ interface EditablePatient extends ParsedPatientRow {
   edit_phone: string;
   edit_dob: string;
   edit_type: "new" | "followup";
+  edit_datetime: string;
 }
 
 // CSV-flow row shape — Papa parses the CSV; we tolerate unknown columns.
@@ -216,6 +233,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
         edit_phone: r.patient_phone || "",
         edit_dob: r.patient_dob || "",
         edit_type: r.detected_type === "unclear" ? "new" : r.detected_type,
+        edit_datetime: r.appointment_datetime ? formatDatetimeForInput(r.appointment_datetime) : "",
       }));
       setEditableRows(rows);
       if (result.patient_rows.length === 0) {
@@ -257,11 +275,16 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
         toast.error(`Row "${r.time_label}": patient name is required`);
         return;
       }
-      if (!r.appointment_datetime) {
-        toast.error(`Row "${r.edit_name}": appointment time is required`);
+      if (!r.edit_datetime) {
+        toast.error(`Row "${r.edit_name}": appointment date and time is required`);
         return;
       }
-      if (new Date(r.appointment_datetime).getTime() < nowMs) {
+      const apptDate = new Date(r.edit_datetime);
+      if (isNaN(apptDate.getTime())) {
+        toast.error(`Row "${r.edit_name}": appointment date and time is invalid`);
+        return;
+      }
+      if (apptDate.getTime() < nowMs) {
         toast.error(`Row "${r.edit_name}": appointment is in the past — please reschedule`);
         return;
       }
@@ -277,7 +300,7 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
         patient_name: r.edit_name.trim(),
         patient_type: r.edit_type,
         // Non-null guaranteed by validation above
-        appointment_datetime: r.appointment_datetime!,
+        appointment_datetime: new Date(r.edit_datetime).toISOString(),
         patient_phone: r.edit_phone.trim() || null,
         patient_dob: r.edit_dob.trim() || null,
         notes: r.raw_note || null,
@@ -548,8 +571,8 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                     <div className="min-w-[800px]">
                     <div className="bg-gray-50/50 border-b border-gray-100 px-5 py-3 grid grid-cols-12 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       <div className="col-span-1">Inc.</div>
-                      <div className="col-span-2">Time</div>
-                      <div className="col-span-3">Name</div>
+                      <div className="col-span-3">Date &amp; Time</div>
+                      <div className="col-span-2">Name</div>
                       <div className="col-span-2">Phone</div>
                       <div className="col-span-2">DOB</div>
                       <div className="col-span-2">Type</div>
@@ -569,8 +592,15 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                             className="w-4 h-4 accent-accent-primary"
                           />
                         </div>
-                        <div className="col-span-2 text-xs font-bold text-gray-700">{row.time_label}</div>
                         <div className="col-span-3">
+                          <input
+                            type="datetime-local"
+                            value={row.edit_datetime}
+                            onChange={(e) => updateRow(i, { edit_datetime: e.target.value })}
+                            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-accent-primary/20"
+                          />
+                        </div>
+                        <div className="col-span-2">
                           <input
                             type="text"
                             value={row.edit_name}
