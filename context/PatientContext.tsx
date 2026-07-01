@@ -136,9 +136,31 @@ export function PatientProvider({ children }: { children: ReactNode }) {
 
   const handleSetActivePatientId = useCallback((id: string | null) => {
     setActivePatientId(id);
+    if (id) {
+      const patient = patients.find(p => p.id === id);
+      if (patient) {
+        const patientSessionsList = sessions.filter(s => s.patient_name === patient.full_name);
+        if (patientSessionsList.length > 0) {
+          const sorted = [...patientSessionsList].sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          const latestSessionId = sorted[0].session_id;
+          setActiveSessionId(latestSessionId);
+          
+          // Instantly sync or clear sessionData to prevent showing old patient's state
+          const cachedData = sessionDataCacheRef.current[latestSessionId];
+          if (cachedData) {
+            setSessionData(cachedData);
+          } else {
+            setSessionData(null);
+          }
+          return;
+        }
+      }
+    }
     setActiveSessionId(null);
     setSessionData(null);
-  }, []);
+  }, [patients, sessions]);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [patientSessions, setPatientSessions] = useState<Record<string, 'idle' | 'active' | 'finished'>>({});
   const [isLoading, setIsLoading] = useState(true);

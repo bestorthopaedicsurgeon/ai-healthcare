@@ -9,7 +9,6 @@ import {
   LogOut,
   Search,
   Activity,
-  Play,
   LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,8 +28,6 @@ export function Sidebar() {
     activeSessionId,
     setActivePatientId,
     setActiveSessionId,
-    getSessionsForPatient,
-    openSessionModal,
     isLoading,
   } = usePatient();
   const { physician, logout } = useAuth();
@@ -151,7 +148,6 @@ export function Sidebar() {
         ) : (
           filteredPatients.map((patient) => {
             const isSelected = activePatientId === patient.id;
-            const patientSessions = getSessionsForPatient(patient.full_name);
 
             return (
               <div key={patient.id} className="space-y-1.5">
@@ -193,107 +189,8 @@ export function Sidebar() {
                         REF-{patient.reference_number}
                       </span>
                     </div>
-                    <div
-                      className={cn(
-                        "transition-transform duration-300",
-                        isSelected ? "rotate-180 text-teal-700" : "text-muted-2"
-                      )}
-                    >
-                      <ChevronDown size={14} />
-                    </div>
                   </div>
                 </button>
-
-                <AnimatePresence>
-                  {isSelected && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="ml-2 overflow-hidden rounded-2xl border border-line bg-surface-2/50"
-                    >
-                      <div className="space-y-3 p-3">
-                        <button
-                          onClick={() => openSessionModal("/scribe")}
-                          className="group flex w-full items-center justify-center gap-2 rounded-lg bg-surface py-2.5 text-xs font-semibold text-teal-700 shadow-soft transition-all hover:bg-teal-700 hover:text-white active:scale-95"
-                        >
-                          <Plus
-                            size={14}
-                            className="transition-transform group-hover:rotate-90"
-                          />{" "}
-                          Start consultation
-                        </button>
-
-                        <div className="space-y-1">
-                          <div className="mb-2 px-1 text-[9px] font-semibold uppercase tracking-widest text-muted-2">
-                            Case history
-                          </div>
-                          {patientSessions.length === 0 ? (
-                            <p className="px-2 py-1.5 text-[10px] italic text-muted-2">
-                              No previous visits
-                            </p>
-                          ) : (
-                            patientSessions.slice(0, 3).map((session) => (
-                              <button
-                                key={session.session_id}
-                                onClick={() =>
-                                  setActiveSessionId(session.session_id)
-                                }
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-lg border p-2.5 transition-all",
-                                  activeSessionId === session.session_id
-                                    ? "border-teal-200 bg-surface text-ink"
-                                    : "border-transparent bg-transparent text-muted hover:bg-surface"
-                                )}
-                              >
-                                <div className="flex min-w-0 flex-col gap-0.5">
-                                  <span className="truncate font-mono-num text-[10px] font-semibold">
-                                    {new Date(
-                                      session.created_at
-                                    ).toLocaleDateString([], {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })}
-                                  </span>
-                                  <div className="flex items-center gap-1.5">
-                                    <div
-                                      className={cn(
-                                        "h-1 w-1 rounded-full",
-                                        isExpired(session.expires_at)
-                                          ? "bg-line-strong"
-                                          : "animate-pulse bg-success"
-                                      )}
-                                    />
-                                    <span
-                                      className={cn(
-                                        "text-[9px] font-semibold uppercase",
-                                        isExpired(session.expires_at)
-                                          ? "text-muted-2"
-                                          : "text-success"
-                                      )}
-                                    >
-                                      {isExpired(session.expires_at)
-                                        ? "Archived"
-                                        : "Live session"}
-                                    </span>
-                                  </div>
-                                </div>
-                                {activeSessionId === session.session_id && (
-                                  <Play
-                                    size={10}
-                                    fill="currentColor"
-                                    className="text-teal-700"
-                                  />
-                                )}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             );
           })

@@ -29,7 +29,6 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const filteredPatients = patients.filter(p =>
-  const filteredPatients = patients.filter(p =>
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.reference_number.toString().includes(search)
   );
@@ -65,8 +64,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <Button
-              <Button
-            onClick={() => setIsPatientModalOpen(true)}
+              onClick={() => setIsPatientModalOpen(true)}
               size="lg"
               className="gap-3 bg-accent-primary cursor-pointer hover:bg-accent-primary/90 text-white shadow-2xl shadow-accent-primary/30 rounded-[20px] h-16 px-10 font-black tracking-tight"
             >
@@ -133,12 +131,11 @@ export default function DashboardPage() {
                     <tbody>
                       {isLoading ? (
                         [1, 2, 3, 4, 5].map(i => (
-                          [1, 2, 3, 4, 5].map(i => (
-                            <tr key={i} className="animate-pulse">
-                              <td colSpan={4} className="border-b border-line px-8 py-5"><div className="h-6 rounded-lg bg-surface-2" /></td>
-                            </tr>
-                          ))
-                        ) : filteredPatients.length === 0 ? (
+                          <tr key={i} className="animate-pulse">
+                            <td colSpan={4} className="border-b border-line px-8 py-5"><div className="h-6 rounded-lg bg-surface-2" /></td>
+                          </tr>
+                        ))
+                      ) : filteredPatients.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="px-8 py-20 text-center">
                               <div className="mx-auto max-w-xs space-y-3">
@@ -191,8 +188,6 @@ export default function DashboardPage() {
       /> */}
 
         <BulkUploadWizard
-          isOpen={isPatientModalOpen}
-          onClose={() => setIsPatientModalOpen(false)}
           isOpen={isPatientModalOpen}
           onClose={() => setIsPatientModalOpen(false)}
         />

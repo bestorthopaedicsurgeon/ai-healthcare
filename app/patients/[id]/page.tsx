@@ -42,7 +42,8 @@ export default function PatientProfilePage() {
         if (patientId && activePatientId !== patientId) {
             setActivePatientId(patientId);
         }
-    }, [patientId, activePatientId, setActivePatientId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [patientId, setActivePatientId]);
 
     if (isLoading && !currentPatient) {
         return (

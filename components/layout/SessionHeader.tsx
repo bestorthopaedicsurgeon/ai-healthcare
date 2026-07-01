@@ -18,7 +18,7 @@ const tools = [
 export function SessionHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeSession, openSessionModal, sessionData } = usePatient();
+  const { activePatient, activeSession, openSessionModal, sessionData } = usePatient();
 
   const isDashboard = pathname === "/dashboard";
 
@@ -32,7 +32,7 @@ export function SessionHeader() {
     })
     .filter(t => !(t.id === "voice" && isFollowup));
 
-  if (!activeSession && !isDashboard) return (
+  if (!activePatient && !isDashboard) return (
     <header className="h-16 border-b border-line bg-white flex items-center px-8 shrink-0">
       <div className="flex items-center gap-2 text-muted">
         <Activity size={18} />
@@ -53,14 +53,14 @@ export function SessionHeader() {
               </div>
               <h1 className="text-sm font-medium text-ink uppercase tracking-widest">Main Dashboard</h1>
             </div>
-          ) : activeSession && (
+          ) : activePatient && (
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center font-medium text-xs shadow-sm border border-teal-100">
-                {activeSession.patient_name.charAt(0)}
+                {activePatient.full_name.charAt(0)}
               </div>
               <div className="flex flex-col">
                 <h1 className="text-sm font-medium text-ink leading-tight flex items-center gap-2">
-                  {activeSession.patient_name}
+                  {activePatient.full_name}
                   {isFollowup && (
                     <span className="px-2 py-0.5 bg-teal-50 text-teal-700 border border-teal-100 rounded-full text-[9px] font-semibold uppercase tracking-widest leading-none shrink-0">
                       Follow-up
@@ -70,14 +70,14 @@ export function SessionHeader() {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Clock size={10} className="text-muted" />
                   <span className="text-[10px] text-muted font-medium whitespace-nowrap">
-                    Visit: {new Date(activeSession.created_at).toLocaleDateString()}
+                    Visit: {activeSession ? new Date(activeSession.created_at).toLocaleDateString() : ""}
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {!isDashboard && activeSession && (
+          {!isDashboard && activePatient && (
             <>
               <ChevronRight size={14} className="text-muted-2" />
               <div className="px-3 py-1 bg-surface-2/50 rounded-lg border border-line">
@@ -124,6 +124,7 @@ export function SessionHeader() {
               );
             })}
           </nav>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-2">
