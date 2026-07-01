@@ -1,18 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
-import { 
-  Plus, 
-  Search, 
-  User, 
-  Activity, 
-  Clock, 
-  ChevronRight, 
-  ArrowUpRight, 
-  Filter, 
+import {
+  Plus,
+  Search,
+  User,
+  Activity,
+  Clock,
+  ArrowUpRight,
+  Filter,
   MoreVertical,
   Calendar,
-  Users
+  Users,
 } from "lucide-react";
 import { usePatient, Patient, Session } from "@/context/PatientContext";
 import { Button } from "@/components/ui/Button";
@@ -28,7 +27,7 @@ export default function DashboardPage() {
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const router = useRouter();
 
-  const filteredPatients = patients.filter(p => 
+  const filteredPatients = patients.filter(p =>
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.reference_number.toString().includes(search)
   );
@@ -40,9 +39,9 @@ export default function DashboardPage() {
   const sessionsToday = sessions.filter(s => new Date(s.created_at) >= startOfToday).length;
 
   const stats = [
-    { label: "Total Patients", value: patients.length, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Active Sessions", value: activeSessions.length, icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Sessions Today", value: sessionsToday, icon: Calendar, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Total patients", value: patients.length, icon: Users },
+    { label: "Active sessions", value: activeSessions.length, icon: Activity },
+    { label: "Sessions today", value: sessionsToday, icon: Calendar },
   ];
 
   const handleSelectSession = (sessionId: string) => {
@@ -56,97 +55,104 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex-1 bg-background overflow-y-auto custom-scrollbar relative">
-      {/* Decorative Glows */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accent-primary/5 blur-[160px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[160px] pointer-events-none" />
+    <div className="relative flex-1 overflow-y-auto bg-background custom-scrollbar">
+      <div className="relative z-10 mx-auto max-w-[1500px] space-y-10 p-10">
 
-      <div className="max-w-[1700px] mx-auto p-12 space-y-12 relative z-10">
-        
         {/* Header Section */}
         <div className="flex items-end justify-between">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight leading-none">Clinical Core</h1>
-            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">Next-Generation Health Management</p>
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-teal-700">
+              Clinical hub
+            </span>
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
+              Overview
+            </h1>
+            <p className="text-sm text-muted">
+              Your patients and live consults, at a glance.
+            </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setIsPatientModalOpen(true)}
-            size="lg" 
-            className="gap-3 bg-accent-primary hover:bg-accent-primary/90 text-white shadow-2xl shadow-accent-primary/30 rounded-[20px] h-16 px-10 font-black tracking-tight"
+            size="lg"
+            className="h-12 gap-2 rounded-2xl bg-teal-700 px-6 font-medium text-white shadow-soft transition-all hover:bg-teal-800"
           >
-            <Plus size={22} className="stroke-[3]" /> Register New Case
+            <Plus size={18} /> New patient
           </Button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
           {stats.map((stat, i) => (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-premium flex flex-col gap-6 group hover:translate-y-[-8px] transition-all duration-500 hover:shadow-2xl hover:border-accent-primary/10"
+              transition={{ delay: i * 0.08 }}
+              className="flex flex-col gap-5 rounded-2xl border border-line bg-surface p-6 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-teal-200"
             >
-              <div className={cn("w-16 h-16 rounded-[24px] flex items-center justify-center transition-all group-hover:scale-110", stat.bg, stat.color)}>
-                <stat.icon size={28} className="stroke-[2.5]" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                <stat.icon size={20} />
               </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">{stat.label}</span>
-                <p className="text-4xl font-black text-gray-900 tracking-tighter italic">{stat.value}</p>
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-2">{stat.label}</span>
+                <p className="font-display text-3xl font-semibold tracking-tight text-ink">{stat.value}</p>
               </div>
             </motion.div>
           ))}
-          {/* Dynamic Invite/Support Card */}
-          <div className="bg-gradient-to-br from-gray-900 to-black p-8 rounded-[40px] shadow-2xl flex flex-col justify-between text-white relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer">
-            <div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-accent-primary opacity-20 blur-[60px]" />
-            <div className="space-y-4 relative z-10">
-              <h3 className="font-black text-xl leading-tight">Empower your clinical flow.</h3>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Support Center &rarr;</p>
+          {/* Support / help card */}
+          <button className="group flex flex-col justify-between rounded-2xl border border-teal-100 bg-teal-50 p-6 text-left transition-all hover:border-teal-200">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-700 text-white">
+              <User size={20} />
             </div>
-          </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-ink">Need a hand?</h3>
+              <p className="flex items-center gap-1 text-xs font-medium text-teal-700">
+                Visit the support centre <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+              </p>
+            </div>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
           {/* Active Sessions List */}
-          <div className="xl:col-span-4 space-y-8">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                <Activity size={24} className="text-emerald-500 stroke-[3]" /> Live Consults
+          <div className="space-y-5 xl:col-span-4">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink">
+                <Activity size={18} className="text-teal-700" /> Live consults
               </h2>
-              <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full ring-1 ring-emerald-100">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none">{activeSessions.length} Online</span>
+              <div className="flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 ring-1 ring-teal-100">
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-700">{activeSessions.length} online</span>
               </div>
             </div>
-            
-            <div className="space-y-4">
+
+            <div className="space-y-3">
               {activeSessions.length === 0 ? (
-                <div className="p-16 text-center bg-gray-50/50 rounded-[40px] border border-dashed border-gray-200">
-                  <p className="text-sm text-gray-300 font-bold uppercase tracking-widest">No Active Telemetry</p>
+                <div className="rounded-2xl border border-dashed border-line bg-surface-2/40 p-12 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-2">No active consults</p>
                 </div>
               ) : activeSessions.map((session, i) => (
                 <motion.button
                   key={session.session_id}
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   onClick={() => handleSelectSession(session.session_id)}
-                  className="w-full text-left bg-white p-6 rounded-[32px] border border-gray-100 shadow-premium hover:shadow-2xl hover:border-accent-primary/20 transition-all group relative overflow-hidden"
+                  className="group relative w-full overflow-hidden rounded-2xl border border-line bg-surface p-5 text-left shadow-soft transition-all hover:border-teal-200"
                 >
-                  <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowUpRight size={20} className="text-accent-primary stroke-[3]" />
+                  <div className="absolute right-0 top-0 p-5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <ArrowUpRight size={18} className="text-teal-700" />
                   </div>
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-[20px] bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xl shadow-sm italic">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-lg font-semibold text-teal-700">
                       {session.patient_name.charAt(0)}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-gray-900 truncate text-[15px]">{session.patient_name}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Clock size={14} className="text-gray-300" />
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                          Engaged {new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold text-ink">{session.patient_name}</p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <Clock size={13} className="text-muted-2" />
+                        <span className="text-[11px] font-medium text-muted">
+                          Started {new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     </div>
@@ -157,90 +163,90 @@ export default function DashboardPage() {
           </div>
 
           {/* Patient Directory Table */}
-          <div className="xl:col-span-8 space-y-8">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                <Users size={24} className="text-blue-500 stroke-[3]" /> Patient Registry
+          <div className="space-y-5 xl:col-span-8">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink">
+                <Users size={18} className="text-teal-700" /> Patient registry
               </h2>
-              <div className="flex items-center gap-4">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-accent-primary transition-colors" size={16} />
-                  <input 
+              <div className="flex items-center gap-3">
+                <div className="group relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-2 transition-colors group-focus-within:text-teal-700" size={16} />
+                  <input
                     type="text"
-                    placeholder="Search database records..."
-                    className="bg-white border border-gray-100 rounded-2xl py-3 pl-12 pr-6 text-[13px] focus:outline-none focus:ring-4 focus:ring-accent-primary/5 transition-all font-bold min-w-[340px] shadow-sm italic placeholder:text-gray-300"
+                    placeholder="Search patients…"
+                    className="min-w-[300px] rounded-xl border border-line bg-surface py-2.5 pl-10 pr-5 text-[13px] font-medium text-ink transition-all placeholder:text-muted-2 focus:border-[#0A6256] focus:bg-[#EAF5F2] focus:outline-none focus:ring-2 focus:ring-[#7FBDB4]/60"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <button className="p-3 bg-white border border-gray-100 rounded-[18px] hover:bg-gray-50 text-gray-400 transition-all shadow-sm">
-                  <Filter size={20} />
+                <button className="rounded-xl border border-line bg-surface p-2.5 text-muted transition-all hover:bg-surface-2/60 hover:text-ink">
+                  <Filter size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-[48px] border border-gray-100 shadow-premium overflow-hidden transition-all hover:shadow-2xl">
+            <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-soft">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-gray-50/50 bg-gray-50/30">
-                      <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Patient ID</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Legal Name</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Demographics</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">Workflow</th>
+                    <tr className="border-b border-line bg-surface-2/40">
+                      <th className="px-8 py-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">Patient ID</th>
+                      <th className="px-8 py-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">Name</th>
+                      <th className="px-8 py-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">Demographics</th>
+                      <th className="px-8 py-4 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-2">Workflow</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoading ? (
-                      [1,2,3,4,5].map(i => (
+                      [1, 2, 3, 4, 5].map(i => (
                         <tr key={i} className="animate-pulse">
-                          <td colSpan={4} className="px-10 py-6 border-b border-gray-50"><div className="h-6 bg-gray-100 rounded-xl" /></td>
+                          <td colSpan={4} className="border-b border-line px-8 py-5"><div className="h-6 rounded-lg bg-surface-2" /></td>
                         </tr>
                       ))
                     ) : filteredPatients.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-10 py-24 text-center">
-                          <div className="max-w-xs mx-auto space-y-4 italic">
-                            <Search className="mx-auto text-gray-200" size={48} />
-                            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No results found for "{search}"</p>
+                        <td colSpan={4} className="px-8 py-20 text-center">
+                          <div className="mx-auto max-w-xs space-y-3">
+                            <Search className="mx-auto text-line-strong" size={40} />
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-2">No results for &ldquo;{search}&rdquo;</p>
                           </div>
                         </td>
                       </tr>
                     ) : filteredPatients.map((patient) => (
-                      <tr 
-                        key={patient.id} 
-                        className="group hover:bg-gray-50/80 transition-all border-b border-gray-50 last:border-0 cursor-pointer relative" 
+                      <tr
+                        key={patient.id}
+                        className="group cursor-pointer border-b border-line transition-all last:border-0 hover:bg-surface-2/50"
                         onClick={() => handleSelectPatient(patient.id)}
                       >
-                        <td className="px-10 py-7 font-mono text-[11px] font-black text-gray-300">REF-{patient.reference_number}</td>
-                        <td className="px-10 py-7">
-                          <div className="flex items-center gap-5">
-                            <div className="w-11 h-11 rounded-[15px] bg-gray-50 text-gray-400 flex items-center justify-center font-black text-[13px] group-hover:bg-accent-primary/10 group-hover:text-accent-primary transition-all shadow-sm">
+                        <td className="px-8 py-5 font-mono-num text-[11px] font-semibold text-muted-2">REF-{patient.reference_number}</td>
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-2 text-[13px] font-semibold text-muted transition-all group-hover:bg-teal-100 group-hover:text-teal-700">
                               {patient.full_name.charAt(0)}
                             </div>
-                            <span className="text-[15px] font-black text-gray-900 group-hover:text-accent-primary transition-colors tracking-tight italic">{patient.full_name}</span>
+                            <span className="text-[15px] font-semibold tracking-tight text-ink transition-colors group-hover:text-teal-700">{patient.full_name}</span>
                           </div>
                         </td>
-                        <td className="px-10 py-7">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[13px] font-bold text-gray-600">{patient.dob}</span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{patient.gender}</span>
+                        <td className="px-8 py-5">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[13px] font-medium text-ink-soft">{patient.dob}</span>
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-2">{patient.gender}</span>
                           </div>
                         </td>
-                        <td className="px-10 py-7 text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <button 
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    setActivePatientId(patient.id); 
-                                    openSessionModal("/scribe"); 
-                                }}
-                                className="px-5 py-2.5 bg-accent-primary/5 text-accent-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-xl shadow-accent-primary/5 active:scale-95"
+                        <td className="px-8 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActivePatientId(patient.id);
+                                openSessionModal("/scribe");
+                              }}
+                              className="rounded-lg bg-teal-50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-teal-700 opacity-0 transition-all hover:bg-teal-700 hover:text-white active:scale-95 group-hover:opacity-100"
                             >
-                                Launch Session
+                              Launch session
                             </button>
-                            <button className="p-2.5 text-gray-300 hover:text-gray-900 hover:bg-white rounded-xl transition-all shadow-sm group-hover:bg-white">
-                                <MoreVertical size={18} />
+                            <button className="rounded-lg p-2 text-muted-2 transition-all hover:bg-surface-2 hover:text-ink">
+                              <MoreVertical size={18} />
                             </button>
                           </div>
                         </td>
@@ -254,14 +260,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* <CreatePatientModal 
-        isOpen={isPatientModalOpen} 
-        onClose={() => setIsPatientModalOpen(false)} 
-      /> */}
-      
       <BulkUploadWizard
-        isOpen={isPatientModalOpen} 
-        onClose={() => setIsPatientModalOpen(false)} 
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
       />
     </div>
   );

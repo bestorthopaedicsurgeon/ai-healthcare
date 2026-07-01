@@ -5,13 +5,7 @@ import { X, ChevronDown, Check, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBookDemo } from "./DemoModalContext";
 
-const employeeOptions = [
-  "1-10",
-  "11-50",
-  "51-200",
-  "201-1000",
-  "1000+",
-];
+const employeeOptions = ["1-10", "11-50", "51-200", "201-1000", "1000+"];
 
 const specialtyOptions = [
   "Family Medicine",
@@ -23,6 +17,9 @@ const specialtyOptions = [
   "Radiology",
   "Other",
 ];
+
+const inputClass =
+  "h-11 w-full rounded-lg border border-line-strong bg-transparent px-3 text-sm text-ink placeholder:text-muted-2 transition-all focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200";
 
 export function BookDemoModal() {
   const { isOpen, close } = useBookDemo();
@@ -50,26 +47,26 @@ export function BookDemoModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-100 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           onClick={handleClose}
         >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+          <div className="absolute inset-0 bg-teal-900/50 backdrop-blur-md" />
 
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl shadow-[#28030f]/10 border border-[#d4c4c9]/30 overflow-hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Book a demo"
+            className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-line bg-white shadow-lifted"
           >
-            {/* Close button */}
             <button
               onClick={handleClose}
               aria-label="Close dialog"
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-[#755760] hover:text-[#28030f] hover:bg-[#f9f4f1] transition-colors z-10"
+              className="absolute right-4 top-4 z-10 cursor-pointer rounded-lg p-1.5 text-muted transition-colors hover:bg-teal-50 hover:text-ink"
             >
               <X size={18} />
             </button>
@@ -80,52 +77,73 @@ export function BookDemoModal() {
               ) : (
                 <>
                   <div className="mb-6">
-                    <span className="inline-flex items-center gap-2 rounded-lg bg-[#f9f4f1] px-3 py-1 text-xs font-medium text-[#28030f] uppercase tracking-wider mb-3">
-                      Book a Demo
+                    <span className="mb-3 inline-flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-teal-800">
+                      Book a demo
                     </span>
-                    <h2 className="text-2xl font-bold text-[#28030f] tracking-tight">
-                      We&apos;d love to hear from you.
+                    <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
+                      See Clinaxy in your workflow.
                     </h2>
-                    <p className="text-sm text-[#755760] mt-2">
-                      Tell us a bit about yourself, and we&apos;ll get in touch
-                      as soon as we can.
+                    <p className="mt-2 text-sm text-muted">
+                      Tell us a bit about your team, and we&apos;ll tailor a
+                      walkthrough and get in touch within 24 hours.
                     </p>
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="firstName" className="sr-only">
+                          First name
+                        </label>
+                        <input
+                          id="firstName"
+                          type="text"
+                          placeholder="First name"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="lastName" className="sr-only">
+                          Last name
+                        </label>
+                        <input
+                          id="lastName"
+                          type="text"
+                          placeholder="Last name"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="sr-only">
+                        Work email
+                      </label>
                       <input
-                        type="text"
-                        placeholder="First name"
+                        id="email"
+                        type="email"
+                        placeholder="Work email"
                         required
-                        className="h-11 w-full rounded-lg border border-[#d4c4c9]/50 bg-transparent px-3 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Last name"
-                        required
-                        className="h-11 w-full rounded-lg border border-[#d4c4c9]/50 bg-transparent px-3 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+                        className={inputClass}
                       />
                     </div>
 
-                    <input
-                      type="email"
-                      placeholder="Work email"
-                      required
-                      className="h-11 w-full rounded-lg border border-[#d4c4c9]/50 bg-transparent px-3 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
-                    />
-
                     <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="Organization name"
-                        required
-                        className="h-11 w-full rounded-lg border border-[#d4c4c9]/50 bg-transparent px-3 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
-                      />
-                      <SelectField
-                        placeholder="Team size"
-                        options={employeeOptions}
-                      />
+                      <div>
+                        <label htmlFor="org" className="sr-only">
+                          Organization name
+                        </label>
+                        <input
+                          id="org"
+                          type="text"
+                          placeholder="Organization name"
+                          required
+                          className={inputClass}
+                        />
+                      </div>
+                      <SelectField placeholder="Team size" options={employeeOptions} />
                     </div>
 
                     <SelectField
@@ -136,12 +154,12 @@ export function BookDemoModal() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 rounded-xl bg-[#28030f] text-white font-medium text-sm hover:bg-[#28030f]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                      className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-medium text-white transition-colors hover:bg-teal-800 disabled:opacity-70"
                     >
                       {loading ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
-                        "Request a Demo"
+                        "Request a demo"
                       )}
                     </button>
                   </form>
@@ -170,16 +188,14 @@ function SelectField({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="h-11 w-full rounded-lg border border-[#d4c4c9]/50 bg-transparent px-3 text-sm text-left flex items-center justify-between transition-all focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444]"
+        className="flex h-11 w-full cursor-pointer items-center justify-between rounded-lg border border-line-strong bg-transparent px-3 text-left text-sm transition-all focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
       >
-        <span className={selected ? "text-[#28030f]" : "text-[#d4c4c9]"}>
+        <span className={selected ? "text-ink" : "text-muted-2"}>
           {selected || placeholder}
         </span>
         <ChevronDown
           size={14}
-          className={`text-[#755760] transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
+          className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -189,7 +205,7 @@ function SelectField({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg border border-[#d4c4c9]/40 shadow-lg shadow-[#28030f]/5 z-10 py-1 max-h-48 overflow-y-auto"
+            className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-line bg-white py-1 shadow-lifted"
           >
             {options.map((opt) => (
               <button
@@ -199,12 +215,10 @@ function SelectField({
                   setSelected(opt);
                   setOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm text-[#28030f] hover:bg-[#f9f4f1] transition-colors flex items-center justify-between"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-teal-50"
               >
                 {opt}
-                {selected === opt && (
-                  <Check size={14} className="text-[#28030f]" />
-                )}
+                {selected === opt && <Check size={14} className="text-teal-800" />}
               </button>
             ))}
           </motion.div>
@@ -219,21 +233,21 @@ function SuccessState({ onClose }: { onClose: () => void }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="text-center py-8"
+      className="py-8 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-[#f9f4f1] flex items-center justify-center mx-auto mb-5">
-        <Check size={28} className="text-green-600" />
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50">
+        <Check size={28} className="text-teal-800" />
       </div>
-      <h3 className="text-xl font-bold text-[#28030f] mb-2">
+      <h3 className="mb-2 font-display text-xl font-bold text-ink">
         Thanks for reaching out!
       </h3>
-      <p className="text-sm text-[#755760] mb-6 max-w-sm mx-auto">
-        We&apos;ve received your request. A member of our team will be in
-        touch within 24 hours.
+      <p className="mx-auto mb-6 max-w-sm text-sm text-muted">
+        We&apos;ve received your request. A member of our team will be in touch
+        within 24 hours.
       </p>
       <button
         onClick={onClose}
-        className="text-sm font-medium text-[#755760] hover:text-[#28030f] transition-colors"
+        className="cursor-pointer text-sm font-medium text-muted transition-colors hover:text-ink"
       >
         Close
       </button>

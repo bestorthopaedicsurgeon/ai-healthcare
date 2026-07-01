@@ -13,18 +13,29 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isMarketingPage = pathname === "/" || pathname === "/pricing";
+  const hasAppChrome = !isAuthPage && !isMarketingPage;
 
   return (
     <AuthProvider>
-      <div className={cn("flex min-h-screen", isMarketingPage ? "bg-[#FCFAF8] text-[#28030f]" : "bg-background text-foreground")}>
+      <div className={cn("flex min-h-screen", isMarketingPage ? "bg-canvas text-ink" : "bg-background text-foreground")}>
         <PatientProvider>
           <ReLoginModal />
           <CreateSessionModal />
-          {!isAuthPage && !isMarketingPage && <Sidebar />}
-          <main className={cn("flex-1 flex flex-col h-screen overflow-hidden", isMarketingPage && "overflow-y-auto h-auto")}>
-            {!isAuthPage && !isMarketingPage && <SessionHeader />}
-            <div className="flex-1 overflow-y-auto page-transition">
-                {children}
+          {hasAppChrome && <Sidebar />}
+          <main
+            className={cn(
+              "flex-1 flex flex-col",
+              isMarketingPage ? "min-h-screen" : "h-screen overflow-hidden"
+            )}
+          >
+            {hasAppChrome && <SessionHeader />}
+            <div
+              className={cn(
+                "flex-1 page-transition",
+                !isMarketingPage && "overflow-y-auto"
+              )}
+            >
+              {children}
             </div>
           </main>
         </PatientProvider>

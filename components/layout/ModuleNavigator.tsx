@@ -9,10 +9,10 @@ import { motion } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
 
 const modules = [
-  { label: "Triage", icon: FileSpreadsheet, href: "/triage", color: "text-emerald-500", bg: "bg-emerald-50" },
-  { label: "Voice", icon: Phone, href: "/voice-agent", color: "text-green-500", bg: "bg-green-50" },
-  { label: "Scribe", icon: Mic2, href: "/scribe", color: "text-blue-500", bg: "bg-blue-50" },
-  { label: "Chat", icon: MessageSquare, href: "/chat", color: "text-purple-500", bg: "bg-purple-50" },
+  { label: "Triage", icon: FileSpreadsheet, href: "/triage", color: "text-teal-700", bg: "bg-teal-50" },
+  { label: "Voice", icon: Phone, href: "/voice-agent", color: "text-teal-700", bg: "bg-teal-50" },
+  { label: "Scribe", icon: Mic2, href: "/scribe", color: "text-teal-700", bg: "bg-teal-50" },
+  { label: "Chat", icon: MessageSquare, href: "/chat", color: "text-teal-700", bg: "bg-teal-50" },
 ];
 
 export function ModuleNavigator() {
@@ -30,7 +30,7 @@ export function ModuleNavigator() {
     .filter((mod) => !(mod.href === "/voice-agent" && isFollowup));
 
   return (
-    <div className="flex items-center gap-1.5 p-1.5 bg-sidebar-bg/5 rounded-[20px] border border-gray-100 shadow-premium glass-premium relative z-10">
+    <div className="flex items-center gap-1.5 p-1.5 bg-surface-2/60 rounded-2xl border border-line shadow-soft relative z-10">
       {displayedModules.map((mod) => {
         const isActive = pathname.startsWith(mod.href);
         return (
@@ -38,17 +38,17 @@ export function ModuleNavigator() {
             key={mod.href}
             href={mod.href}
             className={cn(
-              "flex items-center gap-2.5 px-4 py-2 rounded-2xl transition-all text-[13px] font-bold relative group",
+              "flex items-center gap-2.5 px-4 py-2 rounded-2xl transition-all text-[13px] font-medium relative group",
               isActive 
-                ? "bg-white text-gray-900 shadow-xl shadow-black/5" 
-                : "text-gray-400 hover:text-gray-900 hover:bg-white/50"
+                ? "bg-white text-ink shadow-soft" 
+                : "text-muted hover:text-ink hover:bg-white/50"
             )}
           >
             <div className={cn(
                 "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                isActive ? mod.bg : "bg-transparent group-hover:bg-gray-100"
+                isActive ? mod.bg : "bg-transparent group-hover:bg-surface-2"
             )}>
-                <mod.icon size={16} className={cn(isActive ? mod.color : "text-gray-400")} />
+                <mod.icon size={16} className={cn(isActive ? mod.color : "text-muted")} />
             </div>
             <span>{mod.label}</span>
             {isActive && (

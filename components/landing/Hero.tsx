@@ -1,166 +1,449 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
-import { motion } from "framer-motion";
-import { useBookDemo } from "./DemoModalContext";
+import { useEffect, useState } from "react";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileText,
+  Mic2,
+  Route,
+  Sparkles,
+} from "lucide-react";
+
+const ease = [0.2, 0.7, 0.2, 1] as const;
+
+const workflow = [
+  {
+    icon: Route,
+    label: "Incoming referrals",
+    headline: "Priority cases surface first.",
+    detail: "New referral, specialist request, missing context.",
+    status: "Sorted",
+    color: "#c0392b",
+  },
+  {
+    icon: Mic2,
+    label: "Patient story",
+    headline: "The history is captured before the consult.",
+    detail: "Symptoms, medication, goals, red flags.",
+    status: "Ready",
+    color: "#0e8a7d",
+  },
+  {
+    icon: FileText,
+    label: "Consult note",
+    headline: "The note drafts while you stay present.",
+    detail: "Assessment, plan, tasks, letter outline.",
+    status: "Drafted",
+    color: "#c98a22",
+  },
+  {
+    icon: CheckCircle2,
+    label: "Follow-up",
+    headline: "The next step waits for your approval.",
+    detail: "Patient summary, referral letter, team task.",
+    status: "Review",
+    color: "#344039",
+  },
+];
 
 export function Hero() {
-  const { open } = useBookDemo();
+  const [active, setActive] = useState(0);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const smoothX = useSpring(mouseX, { stiffness: 70, damping: 22 });
+  const smoothY = useSpring(mouseY, { stiffness: 70, damping: 22 });
+  const consoleX = useTransform(smoothX, [-1, 1], [-10, 10]);
+  const consoleY = useTransform(smoothY, [-1, 1], [-8, 8]);
+
+  useEffect(() => {
+    const id = window.setInterval(
+      () => setActive((current) => (current + 1) % workflow.length),
+      2600
+    );
+    return () => window.clearInterval(id);
+  }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-radial-hero" />
+    <section
+      className="relative min-h-screen overflow-hidden bg-canvas px-6 pb-14 pt-28 md:pt-32"
+      onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        mouseX.set(((event.clientX - rect.left) / rect.width - 0.5) * 2);
+        mouseY.set(((event.clientY - rect.top) / rect.height - 0.5) * 2);
+      }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 54% 15%, rgba(166,214,206,0.38), transparent 34%), radial-gradient(circle at 18% 40%, rgba(232,226,212,0.68), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.55), transparent 55%)",
+        }}
+      />
 
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-[#fdf444]/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#f9f4f1] rounded-full blur-[150px]" />
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 text-center pt-24">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#d4c4c9]/50 bg-white/60 mb-8"
-        >
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs text-[#755760]">
-            HIPAA & ADHA Compliant — Enterprise Ready
-          </span>
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] mb-6"
-        >
-          <span className="text-[#28030f]">The AI Platform</span>
-          <br />
-          <span className="text-[#755760]">for Healthcare</span>
-        </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="text-lg md:text-xl text-[#755760] max-w-2xl mx-auto mb-10 leading-relaxed"
-        >
-          From referral triage to real-time consultation notes — Cliniq automates
-          the clinical workflow so you can focus on what matters most: your
-          patients.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
-        >
-          <Link
-            href="/signup"
-            className="group flex items-center gap-2 bg-[#fdf444] hover:bg-[#fbf582] text-[#28030f] font-medium px-8 py-3.5 rounded-full transition-all shadow-sm text-sm"
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-7rem)] w-full max-w-7xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease }}
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-4 py-2 text-xs font-medium text-muted shadow-soft backdrop-blur-md"
           >
-            Start Free Trial
-            <ArrowRight
-              size={16}
-              className="group-hover:translate-x-1 transition-transform"
-            />
-          </Link>
-          <button
-            onClick={open}
-            className="group flex items-center gap-2 text-[#755760] hover:text-[#28030f] transition-colors text-sm px-6 py-3.5"
-          >
-            <span className="w-10 h-10 rounded-full border border-[#d4c4c9] flex items-center justify-center group-hover:border-[#28030f]/30 transition-colors bg-white">
-              <Play size={14} className="ml-0.5" />
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-pulse-ring rounded-full bg-teal-500/60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-500" />
             </span>
-            Book a Demo
-          </button>
-        </motion.div>
+            A platform - several modules working as one system
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease, delay: 0.06 }}
+            className="max-w-3xl text-balance text-4xl font-semibold leading-[1.02] tracking-tight text-ink sm:text-5xl md:text-6xl lg:text-[4rem]"
+          >
+            One AI workspace for the work around every{" "}
+            <span className="font-serif-italic text-gradient">appointment.</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease, delay: 0.14 }}
+            className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-muted md:text-lg"
+          >
+            Clinaxy sorts incoming work, collects the patient story, drafts the
+            note, and prepares follow-up - so GPs, surgeons, specialists, and
+            clinic teams can move through the day without chasing paperwork.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease, delay: 0.22 }}
+            className="mt-7 flex flex-col gap-3 sm:flex-row"
+          >
+            <Link
+              href="/pricing"
+              className="group inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-7 py-4 text-sm font-semibold text-white shadow-brand transition-all hover:-translate-y-0.5 hover:bg-teal-800"
+            >
+              Start 7-day trial
+              <ArrowRight
+                size={17}
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </Link>
+            <a
+              href="#how-it-works"
+              className="inline-flex items-center justify-center rounded-full border border-line-strong bg-white/60 px-7 py-4 text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:border-teal-300 hover:text-teal-700"
+            >
+              Watch the workflow
+            </a>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.45 }}
+            className="mt-5 text-xs leading-relaxed text-muted-2"
+          >
+            7 days free. Card required. Clinicians review and approve every
+            output before it leaves the workflow.
+          </motion.p>
+        </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.8 }}
-          className="mt-20 relative max-w-5xl mx-auto"
+          style={{ x: consoleX, y: consoleY }}
+          initial={{ opacity: 0, y: 28, rotateX: 6 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+          transition={{ duration: 0.9, ease, delay: 0.18 }}
+          className="relative mx-auto w-full max-w-2xl"
         >
-          <div className="relative rounded-2xl border border-[#d4c4c9]/40 bg-white/70 backdrop-blur-sm p-1 shadow-xl shadow-[#28030f]/5">
-            <div className="rounded-xl bg-[#f9f4f1]/50 p-8 md:p-12">
-              <div className="grid grid-cols-3 gap-4">
-                <DashboardCard
-                  label="Referrals Triaged"
-                  value="2,847"
-                  change="+12%"
-                />
-                <DashboardCard
-                  label="Voice Intakes"
-                  value="1,293"
-                  change="+8%"
-                />
-                <DashboardCard
-                  label="Notes Generated"
-                  value="4,621"
-                  change="+24%"
-                />
-              </div>
-              <div className="mt-6 flex gap-4">
-                <div className="flex-1 h-32 rounded-lg bg-white/80 border border-[#d4c4c9]/30 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex gap-1">
-                      {[40, 65, 45, 80, 55, 70, 90, 60, 75, 85, 50, 95].map(
-                        (h, i) => (
-                          <div
-                            key={i}
-                            className="w-2 rounded-full bg-linear-to-t from-[#d4c4c9] to-[#28030f]/60"
-                            style={{ height: `${h}%` }}
-                          />
-                        )
-                      )}
-                    </div>
-                    <span className="text-[10px] text-[#755760]">
-                      Weekly Activity
-                    </span>
-                  </div>
-                </div>
-                <div className="w-48 h-32 rounded-lg bg-white/80 border border-[#d4c4c9]/30 p-4 flex flex-col justify-between">
-                  <span className="text-[10px] text-[#755760] uppercase tracking-wider">
-                    Compliance
-                  </span>
-                  <div>
-                    <span className="text-2xl font-bold text-green-600">
-                      100%
-                    </span>
-                    <p className="text-[10px] text-[#755760] mt-1">
-                      HIPAA Adherence
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-3/4 h-40 bg-[#fdf444]/10 blur-[100px] rounded-full" />
+          <WorkflowConsole active={active} setActive={setActive} />
         </motion.div>
       </div>
     </section>
   );
 }
 
-function DashboardCard({
-  label,
-  value,
-  change,
+function WorkflowConsole({
+  active,
+  setActive,
 }: {
-  label: string;
-  value: string;
-  change: string;
+  active: number;
+  setActive: (index: number) => void;
 }) {
+  const current = workflow[active];
+  const ActiveIcon = current.icon;
+
   return (
-    <div className="rounded-lg bg-white/80 border border-[#d4c4c9]/30 p-4">
-      <p className="text-[10px] text-[#755760] uppercase tracking-wider mb-2">
-        {label}
-      </p>
-      <p className="text-xl md:text-2xl font-bold text-[#28030f]">{value}</p>
-      <p className="text-xs mt-1 text-[#755760]">{change} this month</p>
+    <div className="relative">
+      <motion.div
+        aria-hidden
+        className="absolute -inset-8 rounded-[40px]"
+        animate={{ opacity: [0.45, 0.72, 0.45], scale: [0.96, 1.02, 0.96] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          background:
+            "radial-gradient(circle, rgba(127,189,180,0.24), rgba(14,138,125,0.06) 45%, transparent 72%)",
+          filter: "blur(38px)",
+        }}
+      />
+
+      <div className="relative overflow-hidden rounded-[30px] border border-line bg-white/80 p-4 shadow-lifted backdrop-blur-xl md:p-5">
+        <div className="mb-5 flex items-center justify-between gap-4 border-b border-line pb-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-danger/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-honey/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-teal-500/80" />
+          </div>
+          <div className="hidden rounded-full border border-line bg-canvas px-3 py-1 font-mono-num text-[11px] text-muted md:block">
+            live workflow
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr]">
+          <div className="space-y-2">
+            {workflow.map((step, index) => {
+              const Icon = step.icon;
+              const isActive = index === active;
+              return (
+                <button
+                  key={step.label}
+                  type="button"
+                  onClick={() => setActive(index)}
+                  className={`group flex min-h-[76px] w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                    isActive
+                      ? "border-teal-300 bg-teal-50 shadow-soft"
+                      : "border-line bg-white/60 hover:border-line-strong hover:bg-white"
+                  }`}
+                >
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-white"
+                    style={{
+                      borderColor: isActive ? "rgba(14,138,125,0.28)" : "",
+                      color: isActive ? step.color : "var(--muted-2)",
+                    }}
+                  >
+                    <Icon size={18} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink">
+                      {step.label}
+                    </span>
+                    <span className="mt-1 block text-xs leading-snug text-muted">
+                      {step.status}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-line bg-canvas p-5 md:min-h-[420px] md:p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-2">
+                Clinaxy run
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-teal-700">
+                <Sparkles size={13} />
+                active
+              </span>
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current.label}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -18 }}
+                transition={{ duration: 0.45, ease }}
+              >
+                <div className="mb-5 flex items-start gap-4">
+                  <div
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border bg-white"
+                    style={{ color: current.color }}
+                  >
+                    <ActiveIcon size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-teal-700">
+                      {current.label}
+                    </p>
+                    <h2 className="mt-1 text-balance text-2xl font-semibold leading-tight text-ink md:text-3xl">
+                      {current.headline}
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">
+                      {current.detail}
+                    </p>
+                  </div>
+                </div>
+
+                <LiveWorkflow active={active} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveWorkflow({ active }: { active: number }) {
+  if (active === 0) return <ReferralSort />;
+  if (active === 1) return <PatientIntake />;
+  if (active === 2) return <NoteDraft />;
+  return <FollowUp />;
+}
+
+function ReferralSort() {
+  const [top, setTop] = useState(false);
+  useEffect(() => {
+    const id = window.setInterval(() => setTop((value) => !value), 1400);
+    return () => window.clearInterval(id);
+  }, []);
+  const rows = top
+    ? ["Possible fracture", "Post-op review", "Knee pain"]
+    : ["Post-op review", "Knee pain", "Possible fracture"];
+
+  return (
+    <div className="space-y-2.5">
+      {rows.map((row) => (
+        <motion.div
+          layout
+          key={row}
+          transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3"
+        >
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+              row === "Possible fracture" ? "bg-danger" : "bg-teal-300"
+            }`}
+          />
+          <span className="text-sm font-medium text-ink">{row}</span>
+          <span className="ml-auto font-mono-num text-[10px] uppercase tracking-wider text-muted-2">
+            {row === "Possible fracture" ? "first" : "queued"}
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function PatientIntake() {
+  return (
+    <div className="space-y-5">
+      <div className="flex h-16 items-center justify-center gap-1.5 rounded-2xl border border-line bg-white px-4">
+        {Array.from({ length: 34 }).map((_, index) => (
+          <motion.span
+            key={index}
+            className="w-1 rounded-full bg-teal-400"
+            style={{ height: 18 + (index % 7) * 4 }}
+            animate={{ scaleY: [0.35, 1, 0.35] }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: (index % 10) * 0.06,
+            }}
+          />
+        ))}
+      </div>
+      <div className="space-y-2">
+        {["Reason for visit", "Medication changes", "Main concern"].map(
+          (label, index) => (
+            <div
+              key={label}
+              className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3"
+            >
+              <span className="font-mono-num text-[11px] text-muted-2">
+                0{index + 1}
+              </span>
+              <span className="text-sm font-medium text-ink">{label}</span>
+              <motion.span
+                className="ml-auto h-1.5 rounded-full bg-teal-200"
+                initial={{ width: 0 }}
+                animate={{ width: ["28%", "46%", "28%"] }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  delay: index * 0.2,
+                }}
+              />
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NoteDraft() {
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4">
+      <div className="mb-4 flex items-center justify-between border-b border-line pb-3">
+        <span className="text-sm font-semibold text-ink">Progress note</span>
+        <span className="rounded-full bg-teal-50 px-2 py-1 font-mono-num text-[10px] uppercase tracking-wider text-teal-700">
+          drafting
+        </span>
+      </div>
+      <div className="space-y-3">
+        {["History", "Assessment", "Plan", "Tasks"].map((line, index) => (
+          <div key={line}>
+            <div className="mb-1.5 text-xs font-medium text-muted">{line}</div>
+            <motion.div
+              className="h-2 rounded-full bg-teal-100"
+              initial={{ width: "12%" }}
+              animate={{ width: [`${28 + index * 8}%`, "92%", `${28 + index * 8}%`] }}
+              transition={{
+                duration: 3.2,
+                repeat: Infinity,
+                delay: index * 0.22,
+                ease: "easeInOut",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FollowUp() {
+  return (
+    <div className="space-y-3">
+      {["Patient summary", "Referral letter", "Team task"].map(
+        (label, index) => (
+          <motion.div
+            key={label}
+            className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-4"
+            initial={{ opacity: 0.4, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: 0.5,
+              delay: index * 0.16,
+              repeat: Infinity,
+              repeatType: "reverse",
+              repeatDelay: 1.6,
+            }}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+              <CheckCircle2 size={16} />
+            </span>
+            <span className="text-sm font-semibold text-ink">{label}</span>
+            <span className="ml-auto text-xs text-muted-2">review</span>
+          </motion.div>
+        )
+      )}
     </div>
   );
 }
