@@ -1,99 +1,116 @@
 import Link from "next/link";
+import { Facebook, Instagram, Linkedin, Mail, Twitter } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 
-const footerLinks = {
-  Product: [
-    { label: "Features", href: "#features" },
-    { label: "Pricing", href: "#pricing" },
-    { label: "Changelog", href: "#" },
-    { label: "Documentation", href: "#" },
-  ],
-  Solutions: [
-    { label: "Family Medicine", href: "#" },
-    { label: "Specialists", href: "#" },
-    { label: "Mental Health", href: "#" },
-    { label: "Allied Health", href: "#" },
-  ],
-  Company: [
-    { label: "About", href: "#" },
-    { label: "Blog", href: "#" },
-    { label: "Careers", href: "#" },
-    { label: "Contact", href: "#" },
-  ],
-  Legal: [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "HIPAA Compliance", href: "#" },
-    { label: "Security", href: "#" },
-  ],
-};
+const footerGroups = [
+  {
+    title: "Landing",
+    links: [
+      { label: "Workflow", href: "/#how-it-works" },
+      { label: "Modules", href: "/#modules" },
+      { label: "Security", href: "/#security" },
+      { label: "FAQ", href: "/#faq" },
+    ],
+  },
+  {
+    title: "App",
+    links: [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Referral triage", href: "/triage" },
+      { label: "Voice intake", href: "/voice-agent" },
+      { label: "Scribe", href: "/scribe" },
+      { label: "Chat", href: "/chat" },
+    ],
+  },
+  {
+    title: "Account",
+    links: [
+      { label: "Pricing", href: "/pricing" },
+      { label: "Start trial", href: "/signup" },
+      { label: "Log in", href: "/login" },
+    ],
+  },
+];
+
+const socialIcons = [
+  { label: "Facebook", icon: Facebook },
+  { label: "LinkedIn", icon: Linkedin },
+  { label: "Instagram", icon: Instagram },
+  { label: "Twitter", icon: Twitter },
+];
 
 export function Footer() {
   return (
-    <footer className="border-t border-[#d4c4c9]/40 py-16 bg-[#f9f4f1]/30">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-[#28030f] flex items-center justify-center">
-                <span className="font-bold text-xs text-white">C</span>
-              </div>
-              <span className="font-semibold text-[#28030f]">
-                Cliniq<span className="text-[#755760]">AI</span>
-              </span>
-            </Link>
-            <p className="text-xs text-[#755760] leading-relaxed max-w-[200px]">
-              The AI platform for modern healthcare. Documentation, triage, and
-              compliance — all in one place.
+    <footer className="border-t border-line bg-white py-12">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-10 md:grid-cols-[1.2fr_2fr]">
+          <div>
+            <Logo className="mb-4" />
+            <p className="max-w-sm text-sm leading-relaxed text-muted">
+              AI workflow platform for referrals, intake, clinical notes, and
+              follow-up across modern clinics.
             </p>
+
+            <div className="mt-6">
+              <a
+                href="mailto:support@clinaxy.com"
+                className="group inline-flex items-center gap-2 text-sm font-medium text-ink transition-colors hover:text-teal-700"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-canvas text-muted transition-colors group-hover:border-teal-300 group-hover:text-teal-700">
+                  <Mail size={16} />
+                </span>
+                <span>
+                  For queries or help, contact{" "}
+                  <span className="underline decoration-line-strong underline-offset-4">
+                    support@clinaxy.com
+                  </span>
+                </span>
+              </a>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              {socialIcons.map((social) => {
+                const Icon = social.icon;
+                return (
+                  <span
+                    key={social.label}
+                    aria-label={social.label}
+                    title={`${social.label} link coming soon`}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-canvas text-muted"
+                  >
+                    <Icon size={17} />
+                  </span>
+                );
+              })}
+            </div>
           </div>
 
-          {Object.entries(footerLinks).map(([title, links]) => (
-            <div key={title}>
-              <h4 className="text-xs font-semibold text-[#28030f] uppercase tracking-wider mb-4">
-                {title}
-              </h4>
-              <ul className="space-y-2.5">
-                {links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-[#755760] hover:text-[#28030f] transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 py-6 border-t border-[#d4c4c9]/40 mb-6">
-          {["HIPAA", "ADHA", "SOC 2", "ISO 27001", "GDPR"].map((badge) => (
-            <span
-              key={badge}
-              className="text-[10px] font-medium uppercase tracking-wider text-[#755760] px-3 py-1.5 rounded-full border border-[#d4c4c9]/40"
-            >
-              {badge}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-[#755760]">
-            &copy; {new Date().getFullYear()} CliniqAI. All rights reserved.
-          </p>
-          <div className="flex items-center gap-6">
-            {["Twitter", "LinkedIn", "GitHub"].map((social) => (
-              <a
-                key={social}
-                href="#"
-                className="text-xs text-[#755760] hover:text-[#28030f] transition-colors"
-              >
-                {social}
-              </a>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+            {footerGroups.map((group) => (
+              <div key={group.title}>
+                <h4 className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-ink">
+                  {group.title}
+                </h4>
+                <ul className="space-y-3">
+                  {group.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-sm text-muted transition-colors hover:text-teal-700"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-10 flex flex-col gap-4 border-t border-line pt-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} Clinaxy. All rights reserved.</p>
+          <p>Workflow assistance only. Clinicians review and approve outputs.</p>
         </div>
       </div>
     </footer>

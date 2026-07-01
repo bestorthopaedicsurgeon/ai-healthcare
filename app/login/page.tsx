@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Stethoscope, Lock, Mic } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
+
+// Google / Microsoft OAuth isn't wired yet — flip to true to show the social buttons.
+const SOCIAL_AUTH_ENABLED = false;
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,9 +31,9 @@ export default function LoginPage() {
     }
   };
   return (
-    <div className="min-h-screen flex bg-[#FCFAF8]">
+    <div className="min-h-screen flex bg-[#F6F4EE]">
       {/* Left panel — brand */}
-      <div className="hidden md:flex w-1/2 bg-[#28030f] relative overflow-hidden items-center justify-center">
+      <div className="hidden md:flex w-1/2 bg-[#1C2A27] relative overflow-hidden items-center justify-center">
         <BrandPanel
           heading="Welcome back."
           subheading="Sign in to continue managing your clinical workflows with AI."
@@ -45,40 +49,38 @@ export default function LoginPage() {
         >
           {/* Mobile logo */}
           <Link href="/" className="md:hidden flex items-center gap-2 mb-2 w-fit hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-lg bg-[#28030f] flex items-center justify-center">
-              <span className="font-bold text-xs text-white">C</span>
-            </div>
-            <span className="font-semibold text-lg text-[#28030f]">
-              Cliniq<span className="text-[#755760]">AI</span>
-            </span>
+            <Logo href={null} symbolClassName="h-7 w-7" />
           </Link>
 
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#28030f]">
-              Login to CliniqAI
+            <h1 className="text-2xl font-semibold tracking-tight text-[#1C2A27]">
+              Login to Clinaxy
             </h1>
-            <p className="text-sm text-[#755760] mt-1">
+            <p className="text-sm text-[#55625B] mt-1">
               The future of clinical documentation
             </p>
           </div>
 
-          {/* Social auth */}
-          <div className="flex flex-col gap-3">
-            <SocialButton icon="google" label="Sign in with Google" />
-            <SocialButton icon="microsoft" label="Sign in with Microsoft" />
-          </div>
+          {/* Social auth — hidden until Google/Microsoft OAuth is wired */}
+          {SOCIAL_AUTH_ENABLED && (
+            <>
+              <div className="flex flex-col gap-3">
+                <SocialButton icon="google" label="Sign in with Google" />
+                <SocialButton icon="microsoft" label="Sign in with Microsoft" />
+              </div>
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#d4c4c9]/40" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-[#FCFAF8] px-3 text-xs text-[#755760]">
-                Or continue with
-              </span>
-            </div>
-          </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#D5CFBF]/40" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-[#F6F4EE] px-3 text-xs text-[#55625B]">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Email form */}
           <form
@@ -96,7 +98,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+              className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
             />
             <input
               type="password"
@@ -104,22 +106,22 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+              className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
             />
 
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
-                  className="rounded border-[#d4c4c9] text-[#28030f] focus:ring-[#fdf444]"
+                  className="rounded border-[#D5CFBF] text-[#1C2A27] focus:ring-[#0A6256]"
                 />
-                <span className="text-xs text-[#755760] group-hover:text-[#28030f]">
+                <span className="text-xs text-[#55625B] group-hover:text-[#1C2A27]">
                   Remember me
                 </span>
               </label>
               <button
                 type="button"
-                className="text-xs font-medium text-[#755760] hover:text-[#28030f] transition-colors"
+                className="text-xs font-medium text-[#55625B] hover:text-[#1C2A27] transition-colors"
               >
                 Forgot password?
               </button>
@@ -128,7 +130,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="h-11 w-full rounded-xl bg-[#28030f] text-white text-sm font-medium hover:bg-[#28030f]/90 transition-colors flex items-center justify-center gap-2 group disabled:opacity-70"
+              className="h-11 w-full rounded-xl bg-[#0A6256] text-white text-sm font-medium hover:bg-[#0C7468] transition-colors flex items-center justify-center gap-2 group disabled:opacity-70"
             >
               {isLoading ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -144,11 +146,11 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-sm text-[#755760] text-center">
+          <p className="text-sm text-[#55625B] text-center">
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="font-semibold text-[#28030f] hover:underline"
+              className="font-semibold text-[#1C2A27] hover:underline"
             >
               Sign up for free
             </Link>
@@ -171,8 +173,8 @@ function BrandPanel({
   return (
     <>
       {/* Background effects */}
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#28030f_0%,#1b0c14_50%,#28030f_100%)]" />
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#fdf444]/5 rounded-full blur-[100px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#1C2A27_0%,#0B332E_50%,#1C2A27_100%)]" />
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#7FBDB4]/12 rounded-full blur-[100px]" />
       <div className="absolute bottom-1/4 right-1/3 w-48 h-48 bg-white/3 rounded-full blur-[80px]" />
 
       {/* Grid pattern */}
@@ -191,32 +193,27 @@ function BrandPanel({
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         className="absolute top-[15%] right-[20%] w-20 h-20 rounded-2xl border border-white/10 bg-white/3 backdrop-blur-sm flex items-center justify-center"
       >
-        <span className="text-2xl">🩺</span>
+        <Stethoscope size={22} strokeWidth={1.75} className="text-teal-200" />
       </motion.div>
       <motion.div
         animate={{ y: [10, -10, 10] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
         className="absolute bottom-[20%] left-[15%] w-16 h-16 rounded-2xl border border-white/10 bg-white/3 backdrop-blur-sm flex items-center justify-center"
       >
-        <span className="text-xl">🔒</span>
+        <Lock size={20} strokeWidth={1.75} className="text-teal-200" />
       </motion.div>
       <motion.div
         animate={{ y: [-8, 12, -8] }}
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
         className="absolute top-[60%] right-[15%] w-14 h-14 rounded-2xl border border-white/10 bg-white/3 backdrop-blur-sm flex items-center justify-center"
       >
-        <span className="text-lg">🎙️</span>
+        <Mic size={18} strokeWidth={1.75} className="text-teal-200" />
       </motion.div>
 
       {/* Content */}
       <div className="relative z-10 px-12 max-w-md">
         <Link href="/" className="flex items-center gap-2.5 mb-10 w-fit cursor-pointer hover:opacity-80 transition-opacity">
-          <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
-            <span className="font-bold text-sm text-white">C</span>
-          </div>
-          <span className="font-semibold text-lg text-white">
-            Cliniq<span className="text-white/40">AI</span>
-          </span>
+          <Logo href={null} reversed />
         </Link>
 
         <h2 className="text-3xl font-bold text-white leading-tight mb-4">
@@ -228,7 +225,7 @@ function BrandPanel({
 
         {/* Trust badges */}
         <div className="flex flex-wrap gap-2">
-          {["HIPAA", "ADHA", "SOC 2", "Encrypted"].map((badge) => (
+          {["Clinician review", "Secure access", "Role-aware", "Audit-friendly"].map((badge) => (
             <span
               key={badge}
               className="text-[10px] font-medium uppercase tracking-wider text-white/30 px-2.5 py-1 rounded-full border border-white/10"
@@ -257,7 +254,7 @@ function SocialButton({
       type="button"
       disabled
       title="Coming soon"
-      className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white text-sm font-medium text-[#28030f]/60 cursor-not-allowed flex items-center justify-center gap-2.5 relative group"
+      className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white text-sm font-medium text-[#1C2A27]/60 cursor-not-allowed flex items-center justify-center gap-2.5 relative group"
     >
       {icon === "google" && <GoogleIcon />}
       {icon === "microsoft" && <MicrosoftIcon />}

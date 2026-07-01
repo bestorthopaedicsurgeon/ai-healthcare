@@ -1,0 +1,25 @@
+# Clinaxy
+
+> Clinaxy is an AI workflow platform for Australian clinics that runs the whole patient journey: AI referral triage, voice patient intake, an ambient clinical scribe, and automated follow-up. It is built for Australian general practice, and patient data stays in Australia.
+
+## What Clinaxy does
+- Referral triage: reads and prioritises incoming referrals (over HealthLink and other channels) before the patient is booked, so urgent cases surface first.
+- Voice intake: captures the patient's history in their own words before the visit, so the clinician is never starting from a blank page.
+- Ambient scribe: writes the structured clinical note in real time during the consult, with a suggested MBS item. The GP reviews and approves every note.
+- Follow-up and letters: drafts specialist letters and follow-ups, ready for sign-off and sent via HealthLink or Medical-Objects.
+
+## Who it is for
+Australian GPs, specialists, surgeons, practice managers, and clinics.
+
+## Data, safety and compliance
+- Patient data is hosted in Australia (data residency and sovereignty).
+- Built around the Privacy Act 1988 and the Australian Privacy Principles (OAIC).
+- ISO/IEC 27001 certification is in progress; an IRAP assessment is planned for government and enterprise.
+- Clinaxy is a documentation and admin tool, not a diagnostic device. It structures the note; the GP always reviews and approves.
+
+## Practice software it works with
+Best Practice, MedicalDirector, Genie, Zedmed, and Cliniko, plus HealthLink and Medical-Objects for referrals and letters. Some integrations are live and others are on the roadmap, confirmed per clinic.
+
+## Key pages
+- Home: https://clinaxy.ai
+- Pricing: https://clinaxy.ai/pricing

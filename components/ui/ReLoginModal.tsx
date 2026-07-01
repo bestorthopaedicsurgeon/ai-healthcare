@@ -36,19 +36,19 @@ export function ReLoginModal() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 border border-[#d4c4c9]/20"
+          className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 border border-[#D5CFBF]/20"
         >
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-[#28030f]/5 rounded-full flex items-center justify-center text-[#28030f]">
+            <div className="w-12 h-12 bg-[#1C2A27]/5 rounded-full flex items-center justify-center text-[#1C2A27]">
               <Lock size={24} />
             </div>
           </div>
           
           <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-[#28030f]">Session Expired</h2>
-            <p className="text-sm text-[#755760] mt-1">
+            <h2 className="text-xl font-semibold text-[#1C2A27]">Session Expired</h2>
+            <p className="text-sm text-[#55625B] mt-1">
               Please re-enter your password to continue as <br />
-              <span className="font-medium text-[#28030f]">{physician?.email}</span>
+              <span className="font-medium text-[#1C2A27]">{physician?.email}</span>
             </p>
           </div>
 
@@ -60,7 +60,7 @@ export function ReLoginModal() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+                className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:ring-2 focus:ring-[#0A6256]/50 focus:border-[#0A6256] transition-all"
               />
               {error && <p className="text-xs text-red-500 mt-2 ml-1">{error}</p>}
             </div>
@@ -68,7 +68,7 @@ export function ReLoginModal() {
             <button
               type="submit"
               disabled={isLoading}
-              className="h-11 w-full rounded-xl bg-[#28030f] text-white text-sm font-medium hover:bg-[#28030f]/90 transition-colors flex items-center justify-center gap-2 group disabled:opacity-70"
+              className="h-11 w-full rounded-xl bg-[#1C2A27] text-white text-sm font-medium hover:bg-[#1C2A27]/90 transition-colors flex items-center justify-center gap-2 group disabled:opacity-70"
             >
               {isLoading ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -80,8 +80,8 @@ export function ReLoginModal() {
               )}
             </button>
             
-            <p className="text-xs text-center text-[#755760] mt-2">
-              Or <a href="/login" className="underline hover:text-[#28030f]">sign in with a different account</a>
+            <p className="text-xs text-center text-[#55625B] mt-2">
+              Or <a href="/login" className="underline hover:text-[#1C2A27]">sign in with a different account</a>
             </p>
           </form>
         </motion.div>

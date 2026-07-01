@@ -1,109 +1,247 @@
 @import "tailwindcss";
 
+/* ============================================================
+   CLINAXY DESIGN SYSTEM
+   Brand: Clinical Teal & Linen — warm, light, premium-medical
+   Canvas linen #F6F4EE · Signal teal #0E8A7D / deep #0A6256 · Ink #1C2A27
+   ============================================================ */
+
 :root {
-  --background: #fdfdfd;
-  --foreground: #0a0a0b;
-  
-  /* Sidebar & Sidebar Items */
-  --sidebar-bg: #0f1115; /* Deeper, more modern dark */
-  --sidebar-foreground: #ececed;
-  --sidebar-active-bg: #1d2129;
-  --sidebar-hover-bg: #16191f;
-  
-  /* Accents */
-  --accent-primary: #6366f1; /* Modern Indigo */
-  --accent-secondary: #10b981; /* Emerald */
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  
-  /* Content Area */
+  /* --- App (dashboard) tokens --- */
+  --background: #faf9f5;          /* warm linen-tinted app bg */
+  --foreground: #1c2a27;          /* teal-charcoal ink */
+  --sidebar-bg: #ffffff;
+  --sidebar-foreground: #1c2a27;
+  --sidebar-active-bg: #eaf5f2;   /* teal-50 */
+  --sidebar-hover-bg: #f2f0e8;    /* warm hover */
+  --accent-primary: #0a6256;      /* deep teal — accessible primary */
+  --accent-secondary: #0e8a7d;    /* bright signal teal */
+  --success: #1f9d55;
+  --warning: #b26b00;
+  --error: #c0392b;
   --card-bg: #ffffff;
-  --border: #f1f1f4;
-  --input-bg: #f9fafb;
+  --border: #e2ddd0;
+  --input-bg: #f6f4ee;
+
+  /* --- Neutrals (warm linen) --- */
+  --canvas: #f6f4ee;       /* page background — warm linen */
+  --surface: #ffffff;      /* cards */
+  --surface-2: #ece7da;    /* alt sections / insets */
+  --ink: #1c2a27;          /* primary text (teal-charcoal) */
+  --ink-soft: #344039;     /* secondary headings */
+  --muted: #55625b;        /* body text — ~6:1 on linen (AA) */
+  --muted-2: #7c8a82;      /* captions / hints */
+  --line: #e2ddd0;         /* borders (warm) */
+  --line-strong: #d5cfbf;  /* stronger borders */
+
+  /* --- Teal scale (brand signal) --- */
+  --teal-50:  #eaf5f2;
+  --teal-100: #cfe9e4;
+  --teal-200: #a6d6ce;
+  --teal-300: #7fbdb4;     /* soft */
+  --teal-400: #38a89a;
+  --teal-500: #0e8a7d;     /* signal — decorative / brand mark / large display */
+  --teal-600: #0c7468;
+  --teal-700: #0a6256;     /* primary — button fill, white text passes AA */
+  --teal-800: #094e45;     /* hover / deep */
+  --teal-900: #0b332e;     /* deep ground for dark sections */
+
+  /* --- Brand aliases --- */
+  --brand: #0a6256;        /* primary action / accent text on light */
+  --brand-bright: #0e8a7d; /* decorative signal */
+  --brand-deep: #094e45;   /* hover */
+
+  /* --- Warm spark (used sparingly) --- */
+  --honey: #c98a22;
+
+  /* --- Semantic --- */
+  --c-success: #1f9d55;
+  --c-warning: #b26b00;
+  --c-danger:  #c0392b;
+
+  /* --- Motion / radius / focus --- */
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --focus: #0c7468;          /* focus-ring — clears 3:1 on linen & ink */
 }
 
-@theme {
+@theme inline {
+  /* App tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-sidebar-bg: var(--sidebar-bg);
   --color-sidebar-fg: var(--sidebar-foreground);
   --color-accent-primary: var(--accent-primary);
-  --color-border: var(--border);
   --color-accent-secondary: var(--accent-secondary);
+  --color-border: var(--border);
+
+  /* Brand neutrals */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  /* Teal scale */
+  --color-teal-50:  var(--teal-50);
+  --color-teal-100: var(--teal-100);
+  --color-teal-200: var(--teal-200);
+  --color-teal-300: var(--teal-300);
+  --color-teal-400: var(--teal-400);
+  --color-teal-500: var(--teal-500);
+  --color-teal-600: var(--teal-600);
+  --color-teal-700: var(--teal-700);
+  --color-teal-800: var(--teal-800);
+  --color-teal-900: var(--teal-900);
+
+  /* Brand aliases */
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-brand-deep: var(--brand-deep);
+  --color-honey: var(--honey);
+
+  /* Semantic */
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-danger:  var(--c-danger);
+
+  /* Fonts (wired via next/font in layout.tsx) — Hanken Grotesk, one calm humanist voice */
+  --font-display: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+  --font-sans: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+  --font-mono: var(--font-geist-mono), "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* Base Styles */
+/* ============================================================
+   BASE
+   ============================================================ */
+* {
+  border-color: var(--line);
+}
+
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Premium Utilities */
-.glass-premium {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+::selection {
+  background: var(--teal-100);
+  color: var(--teal-900);
 }
 
-.glass-dark-premium {
-  background: rgba(15, 17, 21, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* Headings default to display font */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
-.glow-accent {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+/* Editorial serif accent helper */
+.font-serif-italic {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0;
 }
 
-.glow-success {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+/* Mono helper (metrics, MBS items, timestamps) */
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-.shadow-premium {
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.03);
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-.page-transition {
-  animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+/* Brand gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, var(--teal-700), var(--teal-500) 55%, var(--teal-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
+.text-balance { text-wrap: balance; }
+.text-pretty { text-wrap: pretty; }
+
+/* Glass */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Shadows tuned to teal-charcoal ink (never pure black) */
+.shadow-soft    { box-shadow: 0 10px 40px -12px rgba(28, 42, 39, 0.10); }
+.shadow-lifted  { box-shadow: 0 24px 60px -20px rgba(28, 42, 39, 0.16); }
+.shadow-brand   { box-shadow: 0 18px 40px -16px rgba(10, 98, 86, 0.40); }
+.shadow-premium { box-shadow: 0 10px 40px -12px rgba(28, 42, 39, 0.08); }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { opacity: 0; }
+}
+.animate-pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+
+.page-transition { animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.99); }
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--line-strong);
   border-radius: 20px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.1);
+::-webkit-scrollbar-thumb:hover { background: var(--teal-300); }
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 20px;
 }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--teal-300); }
 
-/* Animations from previous version preserved & refined */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
+html { scroll-behavior: smooth; }
 
-.animate-float { animation: float 5s ease-in-out infinite; }
-
-.text-gradient {
-  background: linear-gradient(135deg, #1e1b4b, #4338ca);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-pulse-ring { animation: none !important; }
+  html { scroll-behavior: auto; }
 }

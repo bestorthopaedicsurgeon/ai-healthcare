@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Mic, Check } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
@@ -35,9 +36,9 @@ export default function SignupPage() {
     }
   };
   return (
-    <div className="min-h-screen flex bg-[#FCFAF8]">
+    <div className="min-h-screen flex bg-[#F6F4EE]">
       {/* Left panel — brand */}
-      <div className="hidden md:flex w-1/2 bg-[#28030f] relative overflow-hidden items-center justify-center">
+      <div className="hidden md:flex w-1/2 bg-[#1C2A27] relative overflow-hidden items-center justify-center">
         <BrandPanel />
       </div>
 
@@ -50,20 +51,15 @@ export default function SignupPage() {
         >
           {/* Mobile logo */}
           <div className="md:hidden flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-[#28030f] flex items-center justify-center">
-              <span className="font-bold text-xs text-white">C</span>
-            </div>
-            <span className="font-semibold text-lg text-[#28030f]">
-              Cliniq<span className="text-[#755760]">AI</span>
-            </span>
+            <Logo href={null} symbolClassName="h-7 w-7" />
           </div>
 
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#28030f]">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#1C2A27]">
               Create your account
             </h1>
-            <p className="text-sm text-[#755760] mt-1">
-              Free 14-day trial. No credit card required.
+            <p className="text-sm text-[#55625B] mt-1">
+              Start your 7-day trial. Card required.
             </p>
           </div>
 
@@ -76,10 +72,10 @@ export default function SignupPage() {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#d4c4c9]/40" />
+              <div className="w-full border-t border-[#D5CFBF]/40" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-[#FCFAF8] px-3 text-xs text-[#755760]">
+              <span className="bg-[#F6F4EE] px-3 text-xs text-[#55625B]">
                 Or continue with email
               </span>
             </div>
@@ -102,7 +98,7 @@ export default function SignupPage() {
                 required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+                className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
               />
               <input
                 type="text"
@@ -110,7 +106,7 @@ export default function SignupPage() {
                 required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+                className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
               />
             </div>
             <input
@@ -119,7 +115,7 @@ export default function SignupPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+              className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
             />
             <input
               type="password"
@@ -127,7 +123,7 @@ export default function SignupPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+              className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
             />
             <input
               type="text"
@@ -135,16 +131,16 @@ export default function SignupPage() {
               required
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
-              className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white px-4 text-sm text-[#28030f] placeholder:text-[#d4c4c9] focus:outline-none focus:ring-2 focus:ring-[#fdf444]/50 focus:border-[#fdf444] transition-all"
+              className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white px-4 text-sm text-[#1C2A27] placeholder:text-[#D5CFBF] focus:outline-none focus:border-[#0A6256] focus:ring-2 focus:ring-[#7FBDB4]/60 focus:bg-[#EAF5F2] transition-all"
             />
 
-            <p className="text-[11px] text-[#755760] leading-relaxed">
+            <p className="text-[11px] text-[#55625B] leading-relaxed">
               By creating an account, you agree to our{" "}
-              <a href="#" className="underline hover:text-[#28030f]">
+              <a href="#" className="underline hover:text-[#1C2A27]">
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="#" className="underline hover:text-[#28030f]">
+              <a href="#" className="underline hover:text-[#1C2A27]">
                 Privacy Policy
               </a>
               .
@@ -153,10 +149,10 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="h-11 w-full rounded-xl bg-[#fdf444] text-[#28030f] text-sm font-medium hover:bg-[#fbf582] transition-colors flex items-center justify-center gap-2 group shadow-sm disabled:opacity-70"
+              className="h-11 w-full rounded-xl bg-[#0A6256] text-white text-sm font-medium hover:bg-[#0C7468] transition-colors flex items-center justify-center gap-2 group shadow-sm disabled:opacity-70"
             >
               {isLoading ? (
-                <Loader2 size={18} className="animate-spin text-[#28030f]" />
+                <Loader2 size={18} className="animate-spin text-white" />
               ) : (
                 <>
                   Create Account
@@ -169,11 +165,11 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <p className="text-sm text-[#755760] text-center">
+          <p className="text-sm text-[#55625B] text-center">
             Already have an account?{" "}
             <Link
               href="/login"
-              className="font-semibold text-[#28030f] hover:underline"
+              className="font-semibold text-[#1C2A27] hover:underline"
             >
               Sign in
             </Link>
@@ -189,8 +185,8 @@ export default function SignupPage() {
 function BrandPanel() {
   return (
     <>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#28030f_0%,#1b0c14_50%,#28030f_100%)]" />
-      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-[#fdf444]/5 rounded-full blur-[100px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#1C2A27_0%,#0B332E_50%,#1C2A27_100%)]" />
+      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-[#7FBDB4]/12 rounded-full blur-[100px]" />
       <div className="absolute bottom-1/4 left-1/3 w-48 h-48 bg-white/3 rounded-full blur-[80px]" />
 
       <div
@@ -209,7 +205,7 @@ function BrandPanel() {
         className="absolute top-[12%] right-[15%] rounded-2xl border border-white/10 bg-white/4 backdrop-blur-sm p-4 w-44"
       >
         <div className="flex items-center gap-2 mb-2">
-          <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-xs">🎙️</span>
+          <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center"><Mic size={13} className="text-teal-200" /></span>
           <span className="text-[11px] font-medium text-white/60">Voice Intake</span>
         </div>
         <div className="flex gap-0.5">
@@ -217,7 +213,7 @@ function BrandPanel() {
             <div
               key={i}
               className="w-0.5 rounded-full bg-white/20"
-              style={{ height: `${6 + Math.random() * 14}px` }}
+              style={{ height: `${(6 + Math.abs(Math.sin(i * 1.3)) * 14).toFixed(2)}px` }}
             />
           ))}
         </div>
@@ -229,7 +225,7 @@ function BrandPanel() {
         className="absolute bottom-[18%] left-[10%] rounded-2xl border border-white/10 bg-white/4 backdrop-blur-sm p-4 w-48"
       >
         <div className="flex items-center gap-2 mb-2">
-          <span className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center text-xs">✓</span>
+          <span className="w-6 h-6 rounded-lg bg-teal-500/20 flex items-center justify-center"><Check size={13} className="text-teal-300" /></span>
           <span className="text-[11px] font-medium text-white/60">Scribe Active</span>
         </div>
         <div className="text-[10px] text-white/30 leading-relaxed">
@@ -242,20 +238,15 @@ function BrandPanel() {
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
         className="absolute top-[55%] right-[12%] rounded-2xl border border-white/10 bg-white/4 backdrop-blur-sm p-3 w-36"
       >
-        <div className="text-[10px] text-white/40 mb-1">Compliance</div>
-        <div className="text-lg font-bold text-green-400">100%</div>
-        <div className="text-[10px] text-white/30">HIPAA Adherence</div>
+        <div className="text-[10px] text-white/40 mb-1">Governance</div>
+        <div className="text-lg font-bold text-green-400">Review</div>
+        <div className="text-[10px] text-white/30">Clinician approved</div>
       </motion.div>
 
       {/* Content */}
       <div className="relative z-10 px-12 max-w-md">
         <div className="flex items-center gap-2.5 mb-10">
-          <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
-            <span className="font-bold text-sm text-white">C</span>
-          </div>
-          <span className="font-semibold text-lg text-white">
-            Cliniq<span className="text-white/40">AI</span>
-          </span>
+          <Logo href={null} reversed />
         </div>
 
         <h2 className="text-3xl font-bold text-white leading-tight mb-4">
@@ -264,12 +255,12 @@ function BrandPanel() {
           better notes today.
         </h2>
         <p className="text-sm text-white/40 leading-relaxed mb-10">
-          Join thousands of clinicians who use Cliniq to focus on their patients,
+          Join clinicians who use Clinaxy to focus on their patients,
           not their paperwork.
         </p>
 
         <div className="flex flex-wrap gap-2">
-          {["HIPAA", "ADHA", "SOC 2", "Encrypted"].map((badge) => (
+          {["Clinician review", "Secure access", "Role-aware", "Audit-friendly"].map((badge) => (
             <span
               key={badge}
               className="text-[10px] font-medium uppercase tracking-wider text-white/30 px-2.5 py-1 rounded-full border border-white/10"
@@ -298,7 +289,7 @@ function SocialButton({
       type="button"
       disabled
       title="Coming soon"
-      className="h-11 w-full rounded-xl border border-[#d4c4c9]/50 bg-white text-sm font-medium text-[#28030f]/60 cursor-not-allowed flex items-center justify-center gap-2.5 relative group"
+      className="h-11 w-full rounded-xl border border-[#D5CFBF]/50 bg-white text-sm font-medium text-[#1C2A27]/60 cursor-not-allowed flex items-center justify-center gap-2.5 relative group"
     >
       {icon === "google" && <GoogleIcon />}
       {icon === "microsoft" && <MicrosoftIcon />}
