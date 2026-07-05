@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     User,
@@ -15,12 +15,18 @@ import {
     ChevronRight,
     Play,
     FileText,
-    AlertCircle
+    AlertCircle,
+    Trash2,
+    PhoneCall,
+    Loader2,
+    Upload
 } from "lucide-react";
 import { usePatient, Session } from "@/context/PatientContext";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { toast } from "react-hot-toast";
+
 export default function PatientProfilePage() {
     const params = useParams();
     const router = useRouter();
@@ -31,12 +37,20 @@ export default function PatientProfilePage() {
         setActivePatientId,
         setActiveSessionId,
         getSessionsForPatient,
-        isLoading
+        isLoading,
+        sessionData,
+        cancelScheduledIntake,
+        uploadPreviousScribe
     } = usePatient();
 
     // Find the current patient from the URL param
     const patientId = params.id as string;
     const currentPatient = patients.find(p => p.id === patientId);
+
+    const [isCancellingCall, setIsCancellingCall] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [isUploadingScribe, setIsUploadingScribe] = useState(false);
+    const scribeInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (patientId && activePatientId !== patientId) {
@@ -44,6 +58,43 @@ export default function PatientProfilePage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [patientId, setActivePatientId]);
+
+    const handleCancelScheduledCall = async () => {
+        const intakeId = sessionData?.intake?.intake_id;
+        if (!intakeId || isCancellingCall) return;
+        setIsCancellingCall(true);
+        const t = toast.loading("Cancelling scheduled call...");
+        try {
+            await cancelScheduledIntake(intakeId);
+            toast.success("Scheduled call cancelled", { id: t });
+            setShowCancelConfirm(false);
+        } catch (err: any) {
+            toast.error(err?.message || "Could not cancel the call", { id: t });
+        } finally {
+            setIsCancellingCall(false);
+        }
+    };
+
+    const handleScribeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        const currentSessionId = sessionData?.session_id;
+        if (!file || !currentSessionId) return;
+
+        setIsUploadingScribe(true);
+        const uploadToast = toast.loading("Uploading previous scribe PDF...");
+        try {
+            await uploadPreviousScribe(currentSessionId, file);
+            toast.success("Previous scribe uploaded successfully!", {
+                id: uploadToast,
+            });
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to upload previous scribe", {
+                id: uploadToast,
+            });
+        } finally {
+            setIsUploadingScribe(false);
+        }
+    };
 
     if (isLoading && !currentPatient) {
         return (
@@ -124,16 +175,67 @@ export default function PatientProfilePage() {
                         </div>
                     </div>
 
-                    {/* Smart Readiness banner — surfaces missing-referral state for
-                        patients created via the bulk PDF flow (which doesn't attach
-                        GP letters at creation time). */}
+                    {/* Smart Readiness banner — states, in priority order:
+                         1. Followup with no previous scribe → upload previous scribe here
+                         2. New patient with no referral → route to /triage for GP letter
+                         3. No sessions yet → prompt to start one
+                         4. All good → green "ready" tile
+                        The followup/new distinction comes from sessionData.patient_type
+                        (populated once activeSessionId is set — that happens on mount).
+                    */}
                     {(() => {
                         const sessionsForThis = getSessionsForPatient(currentPatient.full_name);
                         const activeSession = sessionsForThis.find(s => !isExpired(s.expires_at));
-                        const missingReferral = activeSession && !activeSession.referral_id;
                         const hasNoSession = sessionsForThis.length === 0;
 
-                        if (missingReferral) {
+                        // Prefer sessionData (has patient_type + previous_scribe) when loaded
+                        const patientType: "new" | "followup" | undefined = sessionData?.patient_type;
+                        const previousScribe = sessionData?.previous_scribe;
+                        const isFollowupMissingScribe =
+                            activeSession &&
+                            patientType === "followup" &&
+                            !previousScribe;
+                        const isNewMissingReferral =
+                            activeSession &&
+                            (patientType === "new" || !patientType) &&
+                            !activeSession.referral_id;
+
+                        if (isFollowupMissingScribe) {
+                            return (
+                                <div className="mt-10 p-5 bg-purple-50/70 border border-purple-200 rounded-3xl flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-purple-600 shadow-sm">
+                                        <AlertCircle size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-purple-900">Previous visit scribe missing</p>
+                                        <p className="text-[11px] text-purple-700 font-medium mt-0.5">
+                                            This is a followup patient. Attach the previous consultation's scribe
+                                            PDF and we'll summarize it so you can glance at it before the appointment.
+                                        </p>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        ref={scribeInputRef}
+                                        onChange={handleScribeFileSelect}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        onClick={() => scribeInputRef.current?.click()}
+                                        disabled={isUploadingScribe}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white transition-colors shrink-0 flex items-center gap-2"
+                                    >
+                                        {isUploadingScribe ? (
+                                            <><Loader2 size={14} className="animate-spin" /> Uploading...</>
+                                        ) : (
+                                            <><Upload size={14} /> Upload scribe PDF</>
+                                        )}
+                                    </button>
+                                </div>
+                            );
+                        }
+
+                        if (isNewMissingReferral) {
                             return (
                                 <div className="mt-10 p-5 bg-amber-50/70 border border-amber-200 rounded-3xl flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
@@ -186,6 +288,94 @@ export default function PatientProfilePage() {
                         );
                     })()}
                 </motion.div>
+
+                {/* Scheduled call card — only for NEW patients whose Agent 2
+                    voice intake call is pending (not yet fired, not in flight,
+                    not completed). Lets the doctor manually cancel the call
+                    before it dials. Hidden for followups (their intake block
+                    is null) and for already-fired / completed calls. */}
+                {(() => {
+                    const intake = sessionData?.intake;
+                    if (!intake || !intake.scheduled_call_at) return null;
+                    if (intake.status !== "pending") return null;
+
+                    const scheduledDate = new Date(intake.scheduled_call_at);
+                    const now = Date.now();
+                    const msUntil = scheduledDate.getTime() - now;
+                    const hoursUntil = Math.round(msUntil / 3600000);
+                    const relativeLabel = msUntil < 0
+                        ? "overdue — scheduler will dispatch shortly"
+                        : hoursUntil < 24
+                            ? `in ${hoursUntil} hour${hoursUntil === 1 ? "" : "s"}`
+                            : `in ${Math.round(hoursUntil / 24)} day${hoursUntil >= 48 ? "s" : ""}`;
+
+                    return (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white border border-blue-100 rounded-[32px] p-6 shadow-sm flex items-center gap-4 mt-6"
+                        >
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                <PhoneCall size={22} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">
+                                    AI voice intake call scheduled
+                                </p>
+                                <p className="text-sm font-bold text-gray-900 mt-1">
+                                    {scheduledDate.toLocaleString(undefined, {
+                                        weekday: "short",
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                    <span className="ml-2 text-xs font-medium text-gray-500">
+                                        ({relativeLabel})
+                                    </span>
+                                </p>
+                                {intake.retry_count > 0 && (
+                                    <p className="text-[11px] text-amber-700 mt-1 font-medium">
+                                        Previous attempt(s): {intake.retry_count}
+                                    </p>
+                                )}
+                            </div>
+
+                            {!showCancelConfirm ? (
+                                <button
+                                    onClick={() => setShowCancelConfirm(true)}
+                                    disabled={isCancellingCall}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors shrink-0 flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} /> Cancel call
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[11px] font-bold text-gray-500 mr-1">Confirm?</span>
+                                    <button
+                                        onClick={handleCancelScheduledCall}
+                                        disabled={isCancellingCall}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white transition-colors flex items-center gap-1.5"
+                                    >
+                                        {isCancellingCall ? (
+                                            <><Loader2 size={12} className="animate-spin" /> Cancelling...</>
+                                        ) : (
+                                            <>Yes, cancel</>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCancelConfirm(false)}
+                                        disabled={isCancellingCall}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                                    >
+                                        Keep
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    );
+                })()}
             </div>
         </div>
     );

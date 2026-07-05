@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 import { usePatient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
-import { Upload, Plus, FileText, CheckCircle2, ChevronRight, AlertCircle, Wand2, Activity, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Upload, Plus, FileText, CheckCircle2, ChevronRight, AlertCircle, Wand2, Activity, AlertTriangle, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,13 +25,16 @@ export default function TriagePage() {
     refreshSessions,
     sessionData,
     isSessionDataLoading,
-    refreshSessionData
+    refreshSessionData,
+    uploadPreviousScribe
   } = usePatient();
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingScribe, setIsUploadingScribe] = useState(false);
   const [referralData, setReferralData] = useState<any | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoadingReferral, setIsLoadingReferral] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scribeInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<'document' | 'raw'>('document');
   // Manual form is prefilled from the active session (if any) — never with
   // mock data, because this UI ships to production.
@@ -137,6 +140,27 @@ export default function TriagePage() {
     }
   };
 
+  const handleScribeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const currentSessionId = sessionData?.session_id;
+    if (!file || !currentSessionId) return;
+
+    setIsUploadingScribe(true);
+    const uploadToast = toast.loading("Uploading previous scribe PDF...");
+    try {
+      await uploadPreviousScribe(currentSessionId, file);
+      toast.success("Previous scribe uploaded successfully!", {
+        id: uploadToast,
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload previous scribe", {
+        id: uploadToast,
+      });
+    } finally {
+      setIsUploadingScribe(false);
+    }
+  };
+
   const calculateAge = (dob: string) => {
     if (!dob) return "N/A";
     
@@ -232,43 +256,81 @@ export default function TriagePage() {
                   <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">Follow-up Patient History</p>
                 </div>
 
-                <div className="bg-white border border-gray-100 rounded-[48px] p-12 shadow-premium relative overflow-hidden group hover:shadow-2xl transition-all">
-                  <div className="absolute top-0 right-0 p-10 opacity-[0.03] text-blue-500 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                    <FileText size={160} />
-                  </div>
-                  <div className="flex items-center gap-3 text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-4">
-                    <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
-                      <FileText size={14} />
-                    </div>
-                    Scribe Summary from Previous Session
-                  </div>
-                  
-                  <div className="space-y-8 relative z-10">
-                    <div className="relative">
-                      <div className="absolute -left-4 top-0 bottom-0 w-1 bg-blue-100 rounded-full" />
-                      <p className="text-gray-800 leading-relaxed text-xl font-medium italic pl-4">
-                        {sessionData?.previous_scribe?.summary ? (
-                          `"${sessionData.previous_scribe.summary}"`
-                        ) : (
-                          "No text summary is available for this previous session's scribe. You can examine the source document below."
-                        )}
-                      </p>
-                    </div>
+                {!sessionData?.previous_scribe ? (
+                  <div 
+                    onClick={() => scribeInputRef.current?.click()}
+                    className={cn(
+                      "border-2 border-dashed rounded-[56px] p-24 bg-white flex flex-col items-center justify-center gap-10 cursor-pointer transition-all relative overflow-hidden group shadow-premium",
+                      isUploadingScribe ? "border-purple-200 bg-purple-50/30" : "border-gray-200 hover:border-purple-500 hover:bg-purple-50/10"
+                    )}
+                  >
+                    <input 
+                      type="file" 
+                      ref={scribeInputRef} 
+                      className="hidden" 
+                      accept=".pdf" 
+                      onChange={handleScribeFileSelect} 
+                    />
                     
-                    {sessionData?.previous_scribe?.file_url && (
-                      <div className="pt-4">
-                        <button 
-                          type="button"
-                          className="flex justify-between items-center py-5 px-8 bg-gray-900 text-white rounded-3xl shadow-2xl hover:bg-black transition-all group scale-100 active:scale-95"
-                          onClick={() => handleViewDocument(sessionData.previous_scribe.file_url)}
-                        >
-                          <span className="text-sm font-black uppercase tracking-[0.2em] mr-4">Examine Previous Scribe Document</span>
-                          <ChevronRight size={20} className="group-hover:translate-x-2 transition-transform stroke-[3]" />
-                        </button>
+                    {isUploadingScribe ? (
+                      <div className="flex flex-col items-center gap-8">
+                        <div className="w-20 h-20 border-4 border-purple-600 border-t-transparent rounded-full animate-spin shadow-2xl" />
+                        <div className="text-center space-y-2">
+                          <p className="font-black text-gray-900 text-2xl italic tracking-tight">Processing Scribe PDF...</p>
+                          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Running OCR and Clinical Analysis</p>
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        <div className="w-24 h-24 rounded-[32px] bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                          <Upload size={44} className="stroke-[2.5]" />
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="font-black text-gray-900 text-2xl italic tracking-tight">Upload Previous Scribe PDF</p>
+                          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Upload the previous consultation note PDF to summarize and review</p>
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-white border border-gray-100 rounded-[48px] p-12 shadow-premium relative overflow-hidden group hover:shadow-2xl transition-all">
+                    <div className="absolute top-0 right-0 p-10 opacity-[0.03] text-blue-500 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                      <FileText size={160} />
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] mb-4">
+                      <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <FileText size={14} />
+                      </div>
+                      Scribe Summary from Previous Session
+                    </div>
+                    
+                    <div className="space-y-8 relative z-10">
+                      <div className="relative">
+                        <div className="absolute -left-4 top-0 bottom-0 w-1 bg-blue-100 rounded-full" />
+                        <p className="text-gray-800 leading-relaxed text-xl font-medium italic pl-4">
+                          {sessionData?.previous_scribe?.summary ? (
+                            `"${sessionData.previous_scribe.summary}"`
+                          ) : (
+                            "No text summary is available for this previous session's scribe. You can examine the source document below."
+                          )}
+                        </p>
+                      </div>
+                      
+                      {sessionData?.previous_scribe?.file_url && (
+                        <div className="pt-4">
+                          <button 
+                            type="button"
+                            className="flex justify-between items-center py-5 px-8 bg-gray-900 text-white rounded-3xl shadow-2xl hover:bg-black transition-all group scale-100 active:scale-95"
+                            onClick={() => handleViewDocument(sessionData.previous_scribe.file_url)}
+                          >
+                            <span className="text-sm font-black uppercase tracking-[0.2em] mr-4">Examine Previous Scribe Document</span>
+                            <ChevronRight size={20} className="group-hover:translate-x-2 transition-transform stroke-[3]" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-center pt-4">
                   <Button 
