@@ -49,6 +49,7 @@ export const API_CONSTANTS = {
     INTAKE_MESSAGE: "/api/v1/intake/{intake_id}/message",
     INTAKE_RESULT: "/api/v1/intake/{intake_id}/result",
     INTAKE_STATUS: "/api/v1/intake/{intake_id}/status",
+    INTAKE_CANCEL_SCHEDULE: "/api/v1/intake/{intake_id}/schedule",
     INTAKE_COMPLETE: "/api/v1/intake/{intake_id}/complete?conversation_id={conversation_id}",
     INTAKE_FINALIZE: "/api/v1/intake/{intake_id}/finalize",
     INTAKE_REPORT: "/api/v1/intake/{intake_id}/report",

@@ -126,6 +126,12 @@ interface PatientContextType {
     summary: string | null;
     summary_generated: boolean;
   }>;
+  cancelScheduledIntake: (intakeId: string) => Promise<{
+    intake_id: string;
+    status: string;
+    cancelled: boolean;
+    message: string;
+  }>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -270,6 +276,25 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     await refreshPatients();
     await refreshSessions();
     return data as BulkUploadResponse;
+  };
+
+  // Manually cancel a scheduled Agent 2 call before it fires.
+  // Backend rejects with 409 if the call is already in flight or terminal.
+  const cancelScheduledIntake = async (intakeId: string) => {
+    const res = await apiFetch(
+      API_CONSTANTS.INTAKE_CANCEL_SCHEDULE.replace("{intake_id}", intakeId),
+      { method: "DELETE" },
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to cancel scheduled call");
+    await refreshSessionData();
+    await refreshSessions();
+    return data as {
+      intake_id: string;
+      status: string;
+      cancelled: boolean;
+      message: string;
+    };
   };
 
   // Attach a previous-visit scribe PDF to a followup session AFTER the fact.
@@ -518,6 +543,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
       parseSchedulePdf,
       confirmBulkPatients,
       uploadPreviousScribe,
+      cancelScheduledIntake,
       sessionData,
       isSessionDataLoading,
       refreshSessionData
