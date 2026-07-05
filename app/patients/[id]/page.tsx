@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     User,
@@ -15,25 +15,35 @@ import {
     ChevronRight,
     Play,
     FileText,
-    AlertCircle
+    AlertCircle,
+    Loader2,
+    Upload,
 } from "lucide-react";
-import { usePatient, Session } from "@/context/PatientContext";
+import { usePatient } from "@/context/PatientContext";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { toast } from "react-hot-toast";
+
 export default function PatientProfilePage() {
     const params = useParams();
     const router = useRouter();
     const {
         patients,
-        activePatient,
         activePatientId,
         setActivePatientId,
+        activeSessionId,
         setActiveSessionId,
+        sessionData,
         getSessionsForPatient,
         openSessionModal,
-        isLoading
+        isLoading,
+        uploadPreviousScribe,
     } = usePatient();
+
+    // Per-patient previous-scribe upload state
+    const scribeInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingScribe, setIsUploadingScribe] = useState(false);
 
     // Find the current patient from the URL param
     const patientId = params.id as string;
@@ -44,6 +54,55 @@ export default function PatientProfilePage() {
             setActivePatientId(patientId);
         }
     }, [patientId, activePatientId, setActivePatientId]);
+
+    // Auto-select this patient's most recent active session so sessionData
+    // populates. Needed for the smart banner to know patient_type +
+    // previous_scribe status.
+    const patientSessionsPreload = currentPatient
+        ? getSessionsForPatient(currentPatient.full_name)
+        : [];
+    const isExpiredHelper = (s: string) => new Date(s).getTime() < new Date().getTime();
+    const activeSessionForPatient = patientSessionsPreload.find(
+        s => !isExpiredHelper(s.expires_at),
+    );
+
+    useEffect(() => {
+        if (activeSessionForPatient && activeSessionId !== activeSessionForPatient.session_id) {
+            setActiveSessionId(activeSessionForPatient.session_id);
+        }
+    }, [activeSessionForPatient?.session_id, activeSessionId, setActiveSessionId]);
+
+    const handleScribeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        // Reset the input so re-selecting the same filename fires onChange
+        if (scribeInputRef.current) scribeInputRef.current.value = "";
+        if (!file || !activeSessionForPatient) return;
+        if (!file.name.toLowerCase().endsWith(".pdf")) {
+            toast.error("Previous scribe must be a PDF file");
+            return;
+        }
+        if (isUploadingScribe) return;
+        setIsUploadingScribe(true);
+        const uploadToast = toast.loading("Uploading previous scribe...");
+        try {
+            const result = await uploadPreviousScribe(
+                activeSessionForPatient.session_id,
+                file,
+            );
+            toast.success(
+                result.summary_generated
+                    ? "Previous scribe uploaded and summarized"
+                    : "Previous scribe uploaded (no summary generated)",
+                { id: uploadToast },
+            );
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to upload previous scribe", {
+                id: uploadToast,
+            });
+        } finally {
+            setIsUploadingScribe(false);
+        }
+    };
 
     if (isLoading && !currentPatient) {
         return (
@@ -69,8 +128,9 @@ export default function PatientProfilePage() {
         );
     }
 
-    const patientSessions = getSessionsForPatient(currentPatient.full_name);
-    const isExpired = (expiryStr: string) => new Date(expiryStr).getTime() < new Date().getTime();
+    // Alias for JSX below — declared with the shared helpers up top.
+    const patientSessions = patientSessionsPreload;
+    const isExpired = isExpiredHelper;
 
     return (
         <div className="flex-1 bg-[#fcfcfc] overflow-y-auto custom-scrollbar">
@@ -132,16 +192,66 @@ export default function PatientProfilePage() {
                         </div>
                     </div>
 
-                    {/* Smart Readiness banner — surfaces missing-referral state for
-                        patients created via the bulk PDF flow (which doesn't attach
-                        GP letters at creation time). */}
+                    {/* Smart Readiness banner — states, in priority order:
+                         1. Followup with no previous scribe → upload previous scribe here
+                         2. New patient with no referral → route to /triage for GP letter
+                         3. No sessions yet → prompt to start one
+                         4. All good → green "ready" tile
+                        The followup/new distinction comes from sessionData.patient_type
+                        (populated once activeSessionId is set — that happens on mount).
+                    */}
                     {(() => {
-                        const sessionsForThis = getSessionsForPatient(currentPatient.full_name);
-                        const activeSession = sessionsForThis.find(s => !isExpired(s.expires_at));
-                        const missingReferral = activeSession && !activeSession.referral_id;
-                        const hasNoSession = sessionsForThis.length === 0;
+                        const activeSession = activeSessionForPatient;
+                        const hasNoSession = patientSessionsPreload.length === 0;
 
-                        if (missingReferral) {
+                        // Prefer sessionData (has patient_type + previous_scribe) when loaded
+                        const patientType: "new" | "followup" | undefined = sessionData?.patient_type;
+                        const previousScribe = sessionData?.previous_scribe;
+                        const isFollowupMissingScribe =
+                            activeSession &&
+                            patientType === "followup" &&
+                            !previousScribe;
+                        const isNewMissingReferral =
+                            activeSession &&
+                            (patientType === "new" || !patientType) &&
+                            !activeSession.referral_id;
+
+                        if (isFollowupMissingScribe) {
+                            return (
+                                <div className="mt-10 p-5 bg-purple-50/70 border border-purple-200 rounded-3xl flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-purple-600 shadow-sm">
+                                        <AlertCircle size={20} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-purple-900">Previous visit scribe missing</p>
+                                        <p className="text-[11px] text-purple-700 font-medium mt-0.5">
+                                            This is a followup patient. Attach the previous consultation's scribe
+                                            PDF and we'll summarize it so you can glance at it before the appointment.
+                                        </p>
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        ref={scribeInputRef}
+                                        onChange={handleScribeFileSelect}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        onClick={() => scribeInputRef.current?.click()}
+                                        disabled={isUploadingScribe}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white transition-colors shrink-0 flex items-center gap-2"
+                                    >
+                                        {isUploadingScribe ? (
+                                            <><Loader2 size={14} className="animate-spin" /> Uploading...</>
+                                        ) : (
+                                            <><Upload size={14} /> Upload scribe PDF</>
+                                        )}
+                                    </button>
+                                </div>
+                            );
+                        }
+
+                        if (isNewMissingReferral) {
                             return (
                                 <div className="mt-10 p-5 bg-amber-50/70 border border-amber-200 rounded-3xl flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm">

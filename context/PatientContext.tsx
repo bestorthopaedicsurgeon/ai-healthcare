@@ -120,6 +120,12 @@ interface PatientContextType {
   uploadBulkPatients: (formData: FormData) => Promise<BulkUploadResponse>;
   parseSchedulePdf: (pdfFile: File) => Promise<ParsedSchedule>;
   confirmBulkPatients: (patients: ConfirmedPatientPayload[]) => Promise<BulkUploadResponse>;
+  uploadPreviousScribe: (sessionId: string, pdfFile: File) => Promise<{
+    session_id: string;
+    file_url: string;
+    summary: string | null;
+    summary_generated: boolean;
+  }>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -264,6 +270,28 @@ const [sessionData, setSessionData] = useState<any | null>(null);
     await refreshPatients();
     await refreshSessions();
     return data as BulkUploadResponse;
+  };
+
+  // Attach a previous-visit scribe PDF to a followup session AFTER the fact.
+  // The bulk PDF flow doesn't accept scribes inline (only the schedule is
+  // parsed), so this endpoint lets the surgeon upload the previous note
+  // per-patient from the patient detail page.
+  const uploadPreviousScribe = async (sessionId: string, pdfFile: File) => {
+    const formData = new FormData();
+    formData.append("file", pdfFile);
+    const res = await apiFetch(
+      API_CONSTANTS.SESSIONS_PREVIOUS_SCRIBE.replace("{session_id}", sessionId),
+      { method: "POST", body: formData },
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to upload previous scribe");
+    await refreshSessionData();
+    return data as {
+      session_id: string;
+      file_url: string;
+      summary: string | null;
+      summary_generated: boolean;
+    };
   };
 
   const setScribeStatus = (patientId: string, status: 'idle' | 'active' | 'finished') => {
@@ -489,6 +517,7 @@ const [sessionData, setSessionData] = useState<any | null>(null);
       uploadBulkPatients,
       parseSchedulePdf,
       confirmBulkPatients,
+      uploadPreviousScribe,
       sessionData,
       isSessionDataLoading,
       refreshSessionData
