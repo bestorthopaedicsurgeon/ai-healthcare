@@ -10,6 +10,7 @@ import {
   Search,
   Activity,
   LayoutDashboard,
+  Mic2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -213,6 +214,21 @@ export function Sidebar() {
             className="transition-transform group-hover:scale-105"
           />
           <span className="text-sm font-medium">Clinical hub</span>
+        </button>
+        <button
+          onClick={() => router.push("/settings/voice-agent")}
+          className={cn(
+            "group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 transition-all",
+            pathname === "/settings/voice-agent"
+              ? "bg-teal-50 text-teal-700"
+              : "text-muted hover:bg-surface-2/60 hover:text-ink"
+          )}
+        >
+          <Mic2
+            size={18}
+            className="transition-transform group-hover:scale-105"
+          />
+          <span className="text-sm font-medium">Voice agent settings</span>
         </button>
         <button className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-muted transition-all hover:bg-surface-2/60 hover:text-ink">
           <HelpCircle

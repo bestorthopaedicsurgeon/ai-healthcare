@@ -59,4 +59,10 @@ export const API_CONSTANTS = {
 
     // Chat
     CHAT_SESSIONS: "/api/v1/chat/sessions/{session_id}",
+
+    // Voice Agent Prompt Customization
+    VOICE_AGENT_PROMPT_ACTIVE: "/api/v1/voice-agent-prompt/active",
+    VOICE_AGENT_PROMPT_VERSIONS: "/api/v1/voice-agent-prompt/versions",
+    VOICE_AGENT_PROMPT_SAVE: "/api/v1/voice-agent-prompt",
+    VOICE_AGENT_PROMPT_ACTIVATE: "/api/v1/voice-agent-prompt/versions/{version_id}/activate",
 }
