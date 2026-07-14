@@ -220,6 +220,8 @@ export default function VoiceAgentPage() {
 
   const transcriptBubbles = parseTranscript(sessionData?.intake?.call_transcript || "");
   const clinicalData = sessionData?.intake?.clinical_data;
+  const previousScribeData = sessionData?.previous_scribe?.clinical_data;
+  const previousScribeSummary = sessionData?.previous_scribe?.summary;
 
   return (
     <div className="min-h-full p-8 bg-white">
@@ -242,26 +244,111 @@ export default function VoiceAgentPage() {
         ) : view === 'followup' ? (
           <motion.div
               key="followup"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl w-full mx-auto space-y-10 pb-24"
           >
-            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-500 shadow-inner">
-              <Phone size={40} />
+            <div className="flex items-center gap-4 px-2">
+              <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 shrink-0 shadow-inner">
+                <Phone size={26} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 italic tracking-tighter">Voice Intake Bypassed</h2>
+                <p className="text-sm font-medium text-gray-500 mt-1">
+                  No voice agent call is required for this follow-up patient — showing previous-visit history instead.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 italic tracking-tighter">Voice Intake Bypassed</h2>
-              <p className="text-sm font-medium text-gray-500 mt-3 leading-relaxed">
-                No voice agent intake call is required for this follow-up patient session.
-              </p>
+
+            {!previousScribeData ? (
+              <div className="bg-gray-50 border border-gray-100 rounded-[32px] p-10 text-center space-y-3">
+                <p className="text-sm font-bold text-gray-500">No previous scribe attached yet.</p>
+                <p className="text-xs text-gray-400">Upload the previous-visit scribe from the patient page to see their history here.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {previousScribeSummary && (
+                  <div className="bg-blue-50/30 border border-blue-100 rounded-3xl p-6">
+                    <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wider block mb-2">Previous Visit Summary</span>
+                    <p className="text-sm font-semibold text-gray-700 leading-relaxed">{previousScribeSummary}</p>
+                  </div>
+                )}
+
+                <div className="bg-white border border-gray-100 rounded-[40px] p-8 shadow-sm space-y-6">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Clinical Checklist (Previous Visit)</h4>
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Past Conditions</span>
+                      <div className="flex flex-wrap gap-2">
+                        {previousScribeData?.past_conditions?.map((c: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(c)}</span>)}
+                        {(!previousScribeData?.past_conditions || previousScribeData.past_conditions.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Current Medications</span>
+                      <div className="flex flex-wrap gap-2">
+                        {previousScribeData?.current_medications?.map((m: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(m)}</span>)}
+                        {(!previousScribeData?.current_medications || previousScribeData.current_medications.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Allergies</span>
+                      <div className="flex flex-wrap gap-2">
+                        {previousScribeData?.allergies?.map((a: any, idx: number) => <span key={idx} className="bg-red-50 text-red-600 border border-red-100 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(a)}</span>)}
+                        {(!previousScribeData?.allergies || previousScribeData.allergies.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Surgical History</span>
+                      <div className="flex flex-wrap gap-2">
+                        {previousScribeData?.surgical_history?.map((s: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(s)}</span>)}
+                        {(!previousScribeData?.surgical_history || previousScribeData.surgical_history.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Family History</span>
+                      <div className="flex flex-wrap gap-2">
+                        {previousScribeData?.family_history?.map((f: any, idx: number) => <span key={idx} className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl">{renderClinicalItem(f)}</span>)}
+                        {(!previousScribeData?.family_history || previousScribeData.family_history.length === 0) && <span className="text-xs text-gray-400 italic">None reported</span>}
+                      </div>
+                    </div>
+
+                    <div className="col-span-2 space-y-2 border-t border-gray-50 pt-4">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Lifestyle & Social Factors</span>
+                      <div className="grid grid-cols-3 gap-4 text-xs font-medium text-gray-600">
+                        {previousScribeData?.lifestyle_factors?.occupation && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Occupation</span>{previousScribeData.lifestyle_factors.occupation}</div>}
+                        {previousScribeData?.lifestyle_factors?.exercise && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Exercise</span>{previousScribeData.lifestyle_factors.exercise}</div>}
+                        {previousScribeData?.lifestyle_factors?.smoking && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Smoking</span>{previousScribeData.lifestyle_factors.smoking}</div>}
+                        {previousScribeData?.lifestyle_factors?.alcohol && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Alcohol</span>{previousScribeData.lifestyle_factors.alcohol}</div>}
+                        {previousScribeData?.lifestyle_factors?.diet && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Diet</span>{previousScribeData.lifestyle_factors.diet}</div>}
+                        {previousScribeData?.lifestyle_factors?.sleep_quality && <div><span className="text-[9px] text-gray-400 font-bold block uppercase mb-0.5">Sleep</span>{previousScribeData.lifestyle_factors.sleep_quality}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {previousScribeData?.additional_concerns && (
+                  <div className="bg-orange-50/20 border border-orange-100/50 rounded-3xl p-6">
+                    <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider block mb-2">Additional Concerns</span>
+                    <p className="text-sm font-semibold text-gray-700 italic">"{previousScribeData.additional_concerns}"</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={() => router.push("/scribe")}
+                variant="primary"
+                className="rounded-2xl px-6 h-12 bg-gray-900 hover:bg-black font-black uppercase tracking-widest text-xs shadow-2xl"
+              >
+                Go to Scribe Workspace
+              </Button>
             </div>
-            <Button 
-              onClick={() => router.push("/scribe")}
-              variant="primary"
-              className="rounded-2xl px-6 h-12 bg-gray-900 hover:bg-black font-black uppercase tracking-widest text-xs shadow-2xl mt-4"
-            >
-              Go to Scribe Workspace
-            </Button>
           </motion.div>
         ) : !activeSession.referral_id ? (
           <motion.div
