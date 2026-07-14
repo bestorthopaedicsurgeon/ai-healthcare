@@ -163,7 +163,7 @@ export default function TriagePage() {
       setReferralData(data);
       setIsExpanded(true);
       await refreshSessions();
-      await refreshSessionData();
+      await refreshSessionData(true);
     } catch (err) {
       console.error("Submit error:", err);
       toast.error("Failed to triage manual data. Please try again.");
@@ -192,7 +192,7 @@ export default function TriagePage() {
       setReferralData(data);
       setIsExpanded(true); // Automatically expand on fresh upload
       await refreshSessions();
-      await refreshSessionData();
+      await refreshSessionData(true);
     } catch (err) {
       console.error("Upload error:", err);
       toast.error("Failed to triage referral. Please try again.");

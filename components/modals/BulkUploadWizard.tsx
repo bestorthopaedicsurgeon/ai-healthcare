@@ -253,6 +253,13 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
     setEditableRows(prev => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
 
+  const handleToggleSelectAll = (checked: boolean) => {
+    setEditableRows(prev => prev.map(r => ({ ...r, include: checked })));
+  };
+
+  const isAllSelected = editableRows.length > 0 && editableRows.every(r => r.include);
+  const isSomeSelected = editableRows.length > 0 && editableRows.some(r => r.include) && !isAllSelected;
+
   // Phone-warning count across included rows — surfaced as a banner
   const phoneWarningCount = editableRows.filter(r => r.include && r.phone_warning).length;
   const uncheckedCount = editableRows.filter(r => !r.include).length;
@@ -569,8 +576,19 @@ export function BulkUploadWizard({ isOpen, onClose }: BulkUploadWizardProps) {
                   {/* Editable patient rows — horizontally scrollable on small screens */}
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
                     <div className="min-w-[800px]">
-                    <div className="bg-gray-50/50 border-b border-gray-100 px-5 py-3 grid grid-cols-12 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                      <div className="col-span-1">Inc.</div>
+                    <div className="bg-gray-50/50 border-b border-gray-100 px-5 py-3 grid grid-cols-12 gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest items-center">
+                      <div className="col-span-1 flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          ref={(el) => {
+                            if (el) el.indeterminate = isSomeSelected;
+                          }}
+                          checked={isAllSelected}
+                          onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                          className="w-4 h-4 accent-accent-primary cursor-pointer"
+                        />
+                        <span>Inc.</span>
+                      </div>
                       <div className="col-span-3">Date &amp; Time</div>
                       <div className="col-span-2">Name</div>
                       <div className="col-span-2">Phone</div>

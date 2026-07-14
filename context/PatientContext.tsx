@@ -139,7 +139,7 @@ interface PatientContextType {
   }>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
-  refreshSessionData: () => Promise<void>;
+  refreshSessionData: (forceRefresh?: boolean) => Promise<void>;
   isRecording: boolean;
   isPaused: boolean;
   isUploading: boolean;
@@ -247,7 +247,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       }
 
       await refreshSessions();
-      await refreshSessionData();
+      await refreshSessionData(true);
       
       setScribeStatus(targetSessionId, 'finished');
       toast.success("Consultation audio uploaded successfully!", { id: uploadToast });
@@ -461,7 +461,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     );
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to cancel scheduled call");
-    await refreshSessionData();
+    await refreshSessionData(true);
     await refreshSessions();
     return data as {
       intake_id: string;
@@ -484,7 +484,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     );
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Failed to upload previous scribe");
-    await refreshSessionData();
+    await refreshSessionData(true);
     return data as {
       session_id: string;
       file_url: string;
@@ -516,17 +516,22 @@ export function PatientProvider({ children }: { children: ReactNode }) {
     setPatientSessions(prev => ({ ...prev, [patientId]: status }));
   };
 
-  const refreshSessionData = useCallback(async () => {
+  const refreshSessionData = useCallback(async (forceRefresh = false) => {
     if (!token || !activeSessionId) {
       setSessionData(null);
       return;
     }
     
-    // Use cached data if available
-    const cachedData = sessionDataCacheRef.current[activeSessionId];
-    if (cachedData) {
-      setSessionData(cachedData);
-      return;
+    if (forceRefresh) {
+      delete sessionDataCacheRef.current[activeSessionId];
+      delete inFlightSessionFetchRef.current[activeSessionId];
+    } else {
+      // Use cached data if available
+      const cachedData = sessionDataCacheRef.current[activeSessionId];
+      if (cachedData) {
+        setSessionData(cachedData);
+        return;
+      }
     }
 
     // Check if there is an in-flight fetch for this session to prevent parallel API requests

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { usePatient } from "@/context/PatientContext";
 import { useAuth } from "@/context/AuthContext";
-import { Phone, Search, Activity, Mic2, FileText, CheckCircle2, AlertCircle, Headphones, X, Play, Loader2, Wand2, ShieldAlert, ChevronRight } from "lucide-react";
+import { Phone, Search, Activity, Mic2, FileText, CheckCircle2, AlertCircle, Headphones, X, Play, Loader2, Wand2, ShieldAlert, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_CONSTANTS } from "@/lib/api-constants";
@@ -61,16 +61,20 @@ export default function VoiceAgentPage() {
   const [intakeId, setIntakeId] = useState<string | null>(null);
   const [pollingStatus, setPollingStatus] = useState<any>(null);
   const [resultsTab, setResultsTab] = useState<'clinical' | 'transcript'>('clinical');
+  const [isNewCallAttempt, setIsNewCallAttempt] = useState(false);
+
+  const activeSessionIdStr = activeSession?.session_id;
 
   // Reset phone edit flag when active session changes
   useEffect(() => {
     if (activeSession) {
       setIsPhoneEdited(false);
+      setIsNewCallAttempt(false);
       setCallStatus('idle');
       setView('setup');
       setIntakeId(activeSession.intake_id || sessionData?.intake?.intake_id || null);
     }
-  }, [activeSession]);
+  }, [activeSessionIdStr]);
 
   // Autofetch phone number from triage extracted data or session data, respecting manual overrides
   useEffect(() => {
@@ -79,7 +83,7 @@ export default function VoiceAgentPage() {
       const sessionPhone = activeSession.patient_phone;
       setTargetPhone(extractedPhone || sessionPhone || "");
     }
-  }, [activeSession, sessionData, isPhoneEdited]);
+  }, [activeSessionIdStr, sessionData, isPhoneEdited]);
 
   // Detect follow-up patient (explicit patient_type from API)
   useEffect(() => {
@@ -92,7 +96,7 @@ export default function VoiceAgentPage() {
     if (sessionData?.patient_type === 'followup') {
       return;
     }
-    if (sessionData?.intake && (sessionData.intake.call_transcript || sessionData.intake.clinical_data)) {
+    if (sessionData?.intake && (sessionData.intake.call_transcript || sessionData.intake.clinical_data) && !isNewCallAttempt) {
       setCallStatus('completed');
       setView('results');
     } else if (sessionData?.intake && view !== 'active') {
@@ -102,7 +106,7 @@ export default function VoiceAgentPage() {
     if (sessionData?.intake?.intake_id && view !== 'active') {
       setIntakeId(sessionData.intake.intake_id);
     }
-  }, [sessionData, view]);
+  }, [sessionData, view, isNewCallAttempt]);
 
   // Status Polling Effect
   useEffect(() => {
@@ -122,7 +126,7 @@ export default function VoiceAgentPage() {
           
           if (statusData.is_terminal || statusData.status === 'completed' || statusData.status === 'failed') {
             clearInterval(intervalId);
-            await refreshSessionData();
+            await refreshSessionData(true);
           }
         }
       } catch (err) {
@@ -158,6 +162,7 @@ export default function VoiceAgentPage() {
     if (isLoading) return; // double-click guard
     setIsLoading(true);
     try {
+      setIsNewCallAttempt(false);
       const payload: any = {
         patient_name: activeSession.patient_name,
         patient_phone: targetPhone || activeSession.patient_phone,
@@ -424,6 +429,39 @@ export default function VoiceAgentPage() {
               </div>
 
               <div className="space-y-4">
+                  {sessionData?.intake?.status === "pending" && sessionData?.intake?.scheduled_call_at && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 flex items-center gap-4 shadow-sm">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-100/50 text-blue-600 flex items-center justify-center shrink-0">
+                        <Clock size={22} className="animate-pulse" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-blue-900 uppercase tracking-widest">
+                          AI voice call scheduled
+                        </p>
+                        <p className="text-xs font-bold text-gray-700 mt-1">
+                          {(() => {
+                            const date = new Date(sessionData.intake.scheduled_call_at);
+                            const msUntil = date.getTime() - Date.now();
+                            const hoursUntil = Math.round(msUntil / 3600000);
+                            const relativeLabel = msUntil < 0
+                              ? "overdue — scheduler will dispatch shortly"
+                              : hoursUntil < 24
+                                ? `in ${hoursUntil} hour${hoursUntil === 1 ? "" : "s"}`
+                                : `in ${Math.round(hoursUntil / 24)} day${hoursUntil >= 48 ? "s" : ""}`;
+                            return `${date.toLocaleString(undefined, {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })} (${relativeLabel})`;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-white border border-gray-100 rounded-[32px] p-6 flex flex-col justify-center gap-2 shadow-sm">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Target Phone Number</label>
                       <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100 focus-within:border-accent-primary/30 focus-within:ring-4 focus-within:ring-accent-primary/10 transition-all">
@@ -514,7 +552,7 @@ export default function VoiceAgentPage() {
                       <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em]">{activeSession.patient_name} • Intake Report • {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                      <Button variant="outline" className="gap-2 h-12 px-6 rounded-xl font-bold border-gray-100" onClick={() => setView('setup')}>New Call</Button>
+                      <Button variant="outline" className="gap-2 h-12 px-6 rounded-xl font-bold border-gray-100" onClick={() => { setView('setup'); setIsNewCallAttempt(true); }}>New Call</Button>
                       {(sessionData?.intake?.intake_id || intakeId) && (
                           <Button 
                               onClick={downloadIntakeReport}
