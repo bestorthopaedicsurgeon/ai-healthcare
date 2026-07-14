@@ -140,6 +140,16 @@ interface PatientContextType {
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
+  isRecording: boolean;
+  isPaused: boolean;
+  isUploading: boolean;
+  recordingTime: number;
+  recordingPatientName: string | null;
+  recordingPatientId: string | null;
+  startRecording: () => Promise<void>;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
+  stopRecording: () => void;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
@@ -191,6 +201,143 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   const refreshSessionsRef = useRef<any>(null);
   const refreshSessionDataRef = useRef<any>(null);
   const inFlightSessionFetchRef = useRef<Record<string, Promise<any> | undefined>>({});
+
+  // Global Scribe Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingPatientName, setRecordingPatientName] = useState<string | null>(null);
+  const [recordingPatientId, setRecordingPatientId] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const uploadAudio = async (
+    audioBlob: Blob,
+    targetSessionId: string,
+    targetPatientName: string,
+    targetNotes?: string
+  ) => {
+    setIsUploading(true);
+    const uploadToast = toast.loading("Processing clinical scribe audio...");
+    try {
+      const formData = new FormData();
+      formData.append("file", audioBlob, "consultation.webm");
+      formData.append("patient_name", targetPatientName);
+      formData.append("primary_complaint", targetNotes || "Recorded Consultation");
+      formData.append("session_id", targetSessionId);
+
+      const response = await apiFetch(API_CONSTANTS.SCRIBE_CONSULTATIONS_UPLOAD_AUDIO, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({} as any));
+        throw new Error(errBody.detail || `Upload failed (${response.status})`);
+      }
+
+      await refreshSessions();
+      await refreshSessionData();
+      
+      setScribeStatus(targetSessionId, 'finished');
+      toast.success("Consultation audio uploaded successfully!", { id: uploadToast });
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast.error(err?.message || "Failed to upload audio. Please try again.", { id: uploadToast });
+      setScribeStatus(targetSessionId, 'active');
+    } finally {
+      setIsUploading(false);
+      setRecordingPatientName(null);
+      setRecordingPatientId(null);
+    }
+  };
+
+  const startRecording = async () => {
+    if (!activeSessionId || !activeSession) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let options = { mimeType: 'audio/webm' };
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: '' }; // fallback to default browser format
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      const targetSessionId = activeSessionId;
+      const targetPatientName = activeSession.patient_name;
+      const targetPatientId = activePatientId;
+      const targetNotes = activeSession.notes;
+
+      setRecordingPatientName(targetPatientName);
+      setRecordingPatientId(targetPatientId);
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        uploadAudio(audioBlob, targetSessionId, targetPatientName, targetNotes);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setIsPaused(false);
+      setScribeStatus(targetSessionId, 'active');
+
+      setRecordingTime(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access denied or error:", err);
+      toast.error("Could not access microphone.");
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.pause();
+      setIsRecording(false);
+      setIsPaused(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
+      mediaRecorderRef.current.resume();
+      setIsRecording(true);
+      setIsPaused(false);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    setIsPaused(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRecordingTime(0);
+  };
 
   const activePatient = patients.find(p => p.id === activePatientId) || null;
   const activeSession = sessions.find(s => s.session_id === activeSessionId) || null;
@@ -643,7 +790,17 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       deletePatientPermanently,
       sessionData,
       isSessionDataLoading,
-      refreshSessionData
+      refreshSessionData,
+      isRecording,
+      isPaused,
+      isUploading,
+      recordingTime,
+      recordingPatientName,
+      recordingPatientId,
+      startRecording,
+      pauseRecording,
+      resumeRecording,
+      stopRecording
     }}>
       {children}
     </PatientContext.Provider>

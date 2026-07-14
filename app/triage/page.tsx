@@ -13,6 +13,67 @@ import { toast } from "react-hot-toast";
 
 import { useRouter } from "next/navigation";
 
+const formatReasoning = (text: string) => {
+  if (!text) return null;
+
+  const regex = /\(\d+\)/g;
+  const parts = text.split(regex);
+  const matches = text.match(regex);
+
+  if (!matches || parts.length <= 1) {
+    return <p className="text-sm font-semibold text-gray-600 leading-relaxed">{text}</p>;
+  }
+
+  const intro = parts[0].trim();
+  const points: string[] = [];
+  let outro = "";
+
+  for (let i = 1; i < parts.length; i++) {
+    const currentPart = parts[i].trim();
+    if (i === parts.length - 1) {
+      const firstPeriodIdx = currentPart.indexOf(". ");
+      if (firstPeriodIdx !== -1) {
+        points.push(currentPart.substring(0, firstPeriodIdx + 1).trim());
+        outro = currentPart.substring(firstPeriodIdx + 2).trim();
+      } else {
+        points.push(currentPart);
+      }
+    } else {
+      points.push(currentPart);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {intro && <p className="text-sm font-semibold text-gray-800 leading-relaxed">{intro}</p>}
+      <div className="grid grid-cols-1 gap-3 pl-1">
+        {points.map((point, index) => {
+          let cleanPoint = point.trim();
+          if (cleanPoint.endsWith(";") || cleanPoint.endsWith(",")) {
+            cleanPoint = cleanPoint.slice(0, -1);
+          }
+          if (cleanPoint && !cleanPoint.endsWith(".")) {
+            cleanPoint = cleanPoint + ".";
+          }
+          return (
+            <div key={index} className="flex items-start gap-3 text-xs font-semibold text-gray-600 leading-relaxed">
+              <span className="w-5 h-5 rounded-md bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-[10px] shrink-0 border border-teal-100 mt-0.5">
+                {index + 1}
+              </span>
+              <span>{cleanPoint}</span>
+            </div>
+          );
+        })}
+      </div>
+      {outro && (
+        <div className="p-4 bg-teal-50/30 border border-teal-100/50 rounded-xl mt-4">
+          <p className="text-xs font-bold text-teal-800 leading-relaxed italic">{outro}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function TriagePage() {
   const router = useRouter();
   const { apiFetch } = useAuth();
@@ -550,11 +611,9 @@ export default function TriagePage() {
                     <div className="h-px w-24 bg-gray-100" />
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        <div className="space-y-4 md:col-span-2">
-                            <p className="text-gray-500 leading-relaxed text-lg font-medium">
+                        <div className="space-y-4 md:col-span-2 bg-gray-50 border border-gray-100 rounded-2xl p-6">
                             <span className="font-bold text-gray-400 block mb-2 uppercase text-xs tracking-widest">Reasoning Matrix</span>
-                            {referralData.reasoning}
-                            </p>
+                            {formatReasoning(referralData.reasoning)}
                         </div>
                         
                         {referralData.extracted_data?.urgency_indicators?.length > 0 && (

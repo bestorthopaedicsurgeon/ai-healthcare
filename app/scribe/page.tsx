@@ -21,21 +21,21 @@ export default function ScribePage() {
     activePatient, 
     activePatientId, 
     openSessionModal,
-    sessionData
+    sessionData,
+    isRecording,
+    isPaused,
+    isUploading,
+    recordingTime,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+    stopRecording
   } = usePatient();
   const router = useRouter();
   const { apiFetch } = useAuth();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [time, setTime] = useState(0);
 
   // Results State
   const [sessionResults, setSessionResults] = useState<any | null>(null);
-
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   const sessionStatus = activeSessionId ? (patientSessions[activeSessionId] || 'idle') : 'none';
 
@@ -87,102 +87,7 @@ export default function ScribePage() {
     }
   };
 
-  const uploadAudio = async (audioBlob: Blob) => {
-    if (!activeSession || !activeSessionId) return;
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", audioBlob, "consultation.webm");
-      formData.append("patient_name", activeSession.patient_name);
-      formData.append("primary_complaint", activeSession.notes || "Recorded Consultation");
-      formData.append("session_id", activeSessionId);
 
-      const response = await apiFetch(API_CONSTANTS.SCRIBE_CONSULTATIONS_UPLOAD_AUDIO, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({} as any));
-        throw new Error(errBody.detail || `Upload failed (${response.status})`);
-      }
-
-      const results = await response.json();
-      setSessionResults(results);
-      // Only mark finished AFTER a successful upload + persisted results
-      setScribeStatus(activeSessionId, 'finished');
-    } catch (err: any) {
-      console.error("Upload error:", err);
-      toast.error(err?.message || "Failed to upload audio. Please try again.");
-      // Revert status to 'active' so the recorder UI is shown again
-      setScribeStatus(activeSessionId, 'active');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const startRecording = async () => {
-    if (!activeSessionId) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        uploadAudio(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setIsPaused(false);
-      setScribeStatus(activeSessionId, 'active');
-      timerRef.current = setInterval(() => {
-        setTime(prev => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error("Microphone access denied", err);
-    }
-  };
-
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      mediaRecorderRef.current.pause();
-      setIsRecording(false);
-      setIsPaused(true);
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-  };
-
-  const resumeRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
-      mediaRecorderRef.current.resume();
-      setIsRecording(true);
-      setIsPaused(false);
-      timerRef.current = setInterval(() => {
-        setTime(prev => prev + 1);
-      }, 1000);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-    setIsPaused(false);
-    // NOTE: do NOT set 'finished' here — the recorder.onstop handler kicks off
-    // uploadAudio() which only flips to 'finished' on a successful upload.
-    // Setting it here would render an empty results page if upload fails.
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTime(0);
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -318,7 +223,7 @@ export default function ScribePage() {
                     </div>
  
                     <div className="text-center space-y-2">
-                      <div className="text-6xl font-black text-gray-900 tracking-tighter italic mb-4">{formatTime(time)}</div>
+                      <div className="text-6xl font-black text-gray-900 tracking-tighter italic mb-4">{formatTime(recordingTime)}</div>
                       <div className={cn(
                         "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em]",
                         isRecording ? "bg-red-50 text-red-500 ring-1 ring-red-100" : "bg-orange-50 text-orange-500 ring-1 ring-orange-100"

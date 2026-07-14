@@ -19,13 +19,115 @@ import {
     Trash2,
     PhoneCall,
     Loader2,
-    Upload
+    Upload,
+    Mic2,
+    CheckCircle2,
+    Download,
+    ExternalLink,
+    ShieldAlert,
+    Wand2,
+    AlertTriangle
 } from "lucide-react";
 import { usePatient, Session } from "@/context/PatientContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
+
+const formatReasoning = (text: string) => {
+  if (!text) return null;
+
+  const regex = /\(\d+\)/g;
+  const parts = text.split(regex);
+  const matches = text.match(regex);
+
+  if (!matches || parts.length <= 1) {
+    return <p className="text-sm font-semibold text-gray-600 leading-relaxed">{text}</p>;
+  }
+
+  const intro = parts[0].trim();
+  const points: string[] = [];
+  let outro = "";
+
+  for (let i = 1; i < parts.length; i++) {
+    const currentPart = parts[i].trim();
+    if (i === parts.length - 1) {
+      const firstPeriodIdx = currentPart.indexOf(". ");
+      if (firstPeriodIdx !== -1) {
+        points.push(currentPart.substring(0, firstPeriodIdx + 1).trim());
+        outro = currentPart.substring(firstPeriodIdx + 2).trim();
+      } else {
+        points.push(currentPart);
+      }
+    } else {
+      points.push(currentPart);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {intro && <p className="text-sm font-semibold text-gray-800 leading-relaxed">{intro}</p>}
+      <div className="grid grid-cols-1 gap-3 pl-1">
+        {points.map((point, index) => {
+          let cleanPoint = point.trim();
+          if (cleanPoint.endsWith(";") || cleanPoint.endsWith(",")) {
+            cleanPoint = cleanPoint.slice(0, -1);
+          }
+          if (cleanPoint && !cleanPoint.endsWith(".")) {
+            cleanPoint = cleanPoint + ".";
+          }
+          return (
+            <div key={index} className="flex items-start gap-3 text-xs font-semibold text-gray-600 leading-relaxed">
+              <span className="w-5 h-5 rounded-md bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-[10px] shrink-0 border border-teal-100 mt-0.5">
+                {index + 1}
+              </span>
+              <span>{cleanPoint}</span>
+            </div>
+          );
+        })}
+      </div>
+      {outro && (
+        <div className="p-4 bg-teal-50/30 border border-teal-100/50 rounded-xl mt-4">
+          <p className="text-xs font-bold text-teal-800 leading-relaxed italic">{outro}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const renderClinicalItem = (item: any) => {
+  if (!item) return "";
+  if (typeof item === 'string') return item;
+  if (typeof item === 'object') {
+    if ('name' in item) {
+      const parts = [
+        item.name,
+        item.dosage ? `(${item.dosage})` : '',
+        item.frequency ? `- ${item.frequency}` : ''
+      ].filter(Boolean);
+      return parts.join(' ');
+    }
+    if ('allergy' in item || 'allergen' in item) {
+      const name = item.allergy || item.allergen;
+      const severity = item.severity ? `(${item.severity})` : '';
+      return `${name} ${severity}`.trim();
+    }
+    if ('procedure' in item || 'surgery' in item) {
+      const name = item.procedure || item.surgery;
+      const date = item.date ? `(${item.date})` : '';
+      return `${name} ${date}`.trim();
+    }
+    if ('condition' in item) {
+      const name = item.condition;
+      const onset = item.onset ? `(${item.onset})` : '';
+      return `${name} ${onset}`.trim();
+    }
+    return Object.values(item).filter(val => typeof val === 'string' && val !== '').join(' ');
+  }
+  return String(item);
+};
 
 export default function PatientProfilePage() {
     const params = useParams();
@@ -40,20 +142,56 @@ export default function PatientProfilePage() {
         isLoading,
         sessionData,
         cancelScheduledIntake,
-        uploadPreviousScribe,
-        deletePatientPermanently
+        uploadPreviousScribe
     } = usePatient();
 
     // Find the current patient from the URL param
     const patientId = params.id as string;
     const currentPatient = patients.find(p => p.id === patientId);
 
+    const { apiFetch } = useAuth();
+    const [activeTab, setActiveTab] = useState<"triage" | "voice" | "consultation">("triage");
+    const [showFullTranscript, setShowFullTranscript] = useState(true);
     const [isCancellingCall, setIsCancellingCall] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [isUploadingScribe, setIsUploadingScribe] = useState(false);
-    const [isDeletingPatient, setIsDeletingPatient] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const scribeInputRef = useRef<HTMLInputElement>(null);
+
+    const handleViewDocument = async (url: string) => {
+        if (!url) return;
+        try {
+            const response = await apiFetch(url);
+            if (!response.ok) throw new Error("Failed to fetch document");
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            window.open(objectUrl, '_blank');
+        } catch (err) {
+            console.error("Document viewing error:", err);
+            toast.error("Failed to load secure document.");
+        }
+    };
+
+    const parseTranscript = (transcript: string) => {
+        if (!transcript) return [];
+        return transcript.split('\n').map((line, idx) => {
+            const isAgent = line.startsWith('Agent:');
+            const isUser = line.startsWith('User:');
+            let speaker = '';
+            let text = line;
+            
+            if (isAgent) {
+                speaker = 'Intake Agent';
+                text = line.replace(/^Agent:\s*/i, '');
+            } else if (isUser) {
+                speaker = 'Patient';
+                text = line.replace(/^User:\s*/i, '');
+            } else {
+                speaker = 'Narrator';
+            }
+            text = text.replace(/\[.*?\]\s*/g, '');
+            return { id: idx, speaker, text, isAgent, isUser };
+        });
+    };
 
     useEffect(() => {
         if (patientId && activePatientId !== patientId) {
@@ -78,22 +216,6 @@ export default function PatientProfilePage() {
         }
     };
 
-    const handleDeletePatient = async () => {
-        if (!currentPatient || isDeletingPatient) return;
-        setIsDeletingPatient(true);
-        const t = toast.loading("Permanently deleting patient and all data...");
-        try {
-            const result = await deletePatientPermanently(currentPatient.id);
-            toast.success("Patient and all associated data deleted", { id: t });
-            setActivePatientId(null);
-            setActiveSessionId(null);
-            router.push("/dashboard");
-        } catch (err: any) {
-            toast.error(err?.message || "Could not delete patient", { id: t });
-            setIsDeletingPatient(false);
-            setShowDeleteConfirm(false);
-        }
-    };
 
     const handleScribeFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -192,42 +314,6 @@ export default function PatientProfilePage() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Permanent delete — irreversible, wipes GP letter/triage,
-                            voice call, scribe consultations, and all sessions for
-                            this patient. 2-step confirm to prevent misclicks. */}
-                        <div className="shrink-0">
-                            {!showDeleteConfirm ? (
-                                <button
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                                >
-                                    <Trash2 size={14} /> Delete Patient
-                                </button>
-                            ) : (
-                                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-2">
-                                    <span className="text-[11px] font-bold text-red-700 px-2">Delete everything?</span>
-                                    <button
-                                        onClick={handleDeletePatient}
-                                        disabled={isDeletingPatient}
-                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white transition-colors flex items-center gap-1.5"
-                                    >
-                                        {isDeletingPatient ? (
-                                            <><Loader2 size={12} className="animate-spin" /> Deleting...</>
-                                        ) : (
-                                            <>Yes, delete all</>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setShowDeleteConfirm(false)}
-                                        disabled={isDeletingPatient}
-                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-gray-700 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -432,6 +518,314 @@ export default function PatientProfilePage() {
                         </motion.div>
                     );
                 })()}
+
+                {/* Unified Patient Medical History Tabs */}
+                {sessionData && (
+                  <div className="bg-white border border-gray-100 rounded-[32px] p-8 shadow-sm space-y-8">
+                    {/* Tab Navigation */}
+                    <div className="flex border-b border-gray-100 pb-2 gap-6">
+                      {(["triage", "voice", "consultation"] as const).map((tab) => {
+                        const labels = {
+                          triage: "GP Referral Triage",
+                          voice: "Voice Patient Intake",
+                          consultation: "Clinical Scribe Results"
+                        };
+                        const isActive = activeTab === tab;
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cn(
+                              "pb-2 px-1 text-xs font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer",
+                              isActive ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"
+                            )}
+                          >
+                            {labels[tab]}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="pt-2">
+                       {/* Tab 1: GP Triage */}
+                       {activeTab === "triage" && (
+                         <div className="space-y-6">
+                           {sessionData.triage ? (
+                             <div className="space-y-6">
+                               <div className="flex items-center justify-between">
+                                 <h3 className="text-sm font-bold text-gray-900">Triage AI Summary</h3>
+                                 {sessionData.triage.triage_category && (
+                                   <span className={cn(
+                                     "px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-lg border",
+                                     sessionData.triage.triage_category === 'urgent' ? 'bg-red-50 text-red-700 border-red-100' : sessionData.triage.triage_category === 'semi_urgent' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                   )}>
+                                     Category {sessionData.triage.triage_category}
+                                   </span>
+                                 )}
+                               </div>
+                               <p className="text-gray-800 font-medium leading-relaxed bg-gray-50/50 p-5 rounded-2xl border border-gray-100 italic">
+                                 "{sessionData.triage.triage_summary}"
+                               </p>
+
+                               {sessionData.triage.reasoning && (
+                                 <div className="space-y-2 bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Clinical Reasoning</span>
+                                   {formatReasoning(sessionData.triage.reasoning)}
+                                 </div>
+                               )}
+
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 {sessionData.triage.extracted_data?.urgency_indicators?.length > 0 && (
+                                   <div className="p-5 bg-red-50/20 border border-red-100/50 rounded-2xl space-y-2">
+                                     <span className="text-[10px] font-black text-red-500 uppercase tracking-widest block">Urgency Indicators</span>
+                                     <div className="space-y-1.5">
+                                       {sessionData.triage.extracted_data.urgency_indicators.map((u: string, idx: number) => (
+                                         <div key={idx} className="flex gap-2 text-xs font-bold text-gray-700 leading-snug">
+                                           <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                                           {u}
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 {sessionData.triage.extracted_data?.risk_factors?.length > 0 && (
+                                   <div className="p-5 bg-orange-50/20 border border-orange-100/50 rounded-2xl space-y-2">
+                                     <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest block">Risk Factors</span>
+                                     <div className="space-y-1.5">
+                                       {sessionData.triage.extracted_data.risk_factors.map((r: string, idx: number) => (
+                                         <div key={idx} className="flex gap-2 text-xs font-bold text-gray-700 leading-snug">
+                                           <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 shrink-0" />
+                                           {r}
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
+                               </div>
+
+                               {sessionData.triage.extracted_data?.diagnostic_reports?.length > 0 && (
+                                 <div className="space-y-2">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Diagnostic Reports Found</span>
+                                   <div className="space-y-3 bg-gray-50 border border-gray-100 rounded-2xl p-6 font-medium">
+                                     {sessionData.triage.extracted_data.diagnostic_reports.map((report: any, idx: number) => (
+                                       <div key={idx} className="pb-4 border-b border-gray-200 last:border-0 last:pb-0">
+                                         <span className="text-[9px] font-black text-teal-600 block uppercase tracking-wider">
+                                           {report.report_type} • {report.body_part_or_test}
+                                         </span>
+                                         <p className="text-xs text-gray-700 leading-relaxed mt-1 italic">
+                                           "{report.findings}"
+                                         </p>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 </div>
+                               )}
+
+                               {sessionData.triage.report_pdf_url && (
+                                 <Button
+                                   variant="outline"
+                                   onClick={() => handleViewDocument(sessionData.triage.report_pdf_url)}
+                                   className="rounded-xl text-xs font-bold h-11"
+                                 >
+                                   View Original GP Referral PDF
+                                 </Button>
+                               )}
+                             </div>
+                           ) : (
+                             <div className="text-center py-10">
+                               <AlertCircle size={28} className="text-gray-300 mx-auto mb-2" />
+                               <p className="text-sm font-semibold text-gray-500">No GP referral document triaged for this session.</p>
+                             </div>
+                           )}
+                         </div>
+                       )}
+
+                       {/* Tab 2: Voice Intake */}
+                       {activeTab === "voice" && (
+                         <div className="space-y-6">
+                           {sessionData.intake ? (
+                             <div className="space-y-6">
+                               {/* Symptoms */}
+                               {sessionData.intake.clinical_data?.symptoms?.length > 0 && (
+                                 <div className="space-y-3">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Reported Symptoms</span>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     {sessionData.intake.clinical_data.symptoms.map((s: any, idx: number) => (
+                                       <div key={idx} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col gap-1">
+                                         <div className="flex justify-between items-center">
+                                           <span className="font-bold text-gray-900 text-sm">{s.symptom}</span>
+                                           <span className={cn(
+                                             "px-2 py-0.5 rounded text-[9px] font-bold uppercase",
+                                             s.severity === 'severe' ? "bg-red-50 text-red-600" : s.severity === 'moderate' ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-600"
+                                           )}>
+                                             {s.severity || 'mild'}
+                                           </span>
+                                         </div>
+                                         <span className="text-[10px] text-gray-400 font-semibold">{s.duration || s.onset ? `${s.duration || ''} ${s.onset ? `(onset: ${s.onset})` : ''}` : 'No timeline listed'}</span>
+                                       </div>
+                                     ))}
+                                   </div>
+                                 </div>
+                               )}
+
+                               {/* Checklist Grid */}
+                               <div className="grid grid-cols-2 gap-6 bg-gray-50 border border-gray-100 rounded-2xl p-6">
+                                 <div className="space-y-2">
+                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Conditions</span>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {sessionData.intake.clinical_data?.past_conditions?.map((c: any, idx: number) => (
+                                       <span key={idx} className="bg-white border border-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-lg">{renderClinicalItem(c)}</span>
+                                     )) || <span className="text-xs text-gray-400 italic">None reported</span>}
+                                     {sessionData.intake.clinical_data?.past_conditions?.length === 0 && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                   </div>
+                                 </div>
+                                 <div className="space-y-2">
+                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Medications</span>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {sessionData.intake.clinical_data?.current_medications?.map((m: any, idx: number) => (
+                                       <span key={idx} className="bg-white border border-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-lg">{renderClinicalItem(m)}</span>
+                                     )) || <span className="text-xs text-gray-400 italic">None reported</span>}
+                                     {sessionData.intake.clinical_data?.current_medications?.length === 0 && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                   </div>
+                                 </div>
+                                 <div className="space-y-2">
+                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Allergies</span>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {sessionData.intake.clinical_data?.allergies?.map((a: any, idx: number) => (
+                                       <span key={idx} className="bg-red-50 text-red-600 border border-red-100 text-xs font-bold px-2.5 py-1 rounded-lg">{renderClinicalItem(a)}</span>
+                                     )) || <span className="text-xs text-gray-400 italic">None reported</span>}
+                                     {sessionData.intake.clinical_data?.allergies?.length === 0 && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                   </div>
+                                 </div>
+                                 <div className="space-y-2">
+                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Surgeries</span>
+                                   <div className="flex flex-wrap gap-1.5">
+                                     {sessionData.intake.clinical_data?.surgical_history?.map((s: any, idx: number) => (
+                                       <span key={idx} className="bg-white border border-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-lg">{renderClinicalItem(s)}</span>
+                                     )) || <span className="text-xs text-gray-400 italic">None reported</span>}
+                                     {sessionData.intake.clinical_data?.surgical_history?.length === 0 && <span className="text-xs text-gray-400 italic">None reported</span>}
+                                   </div>
+                                 </div>
+                               </div>
+
+                               {/* Call Transcript Accordion */}
+                               {sessionData.intake.call_transcript && (
+                                 <div className="space-y-3">
+                                   <div className="flex justify-between items-center">
+                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Intake Call Transcript</span>
+                                     <button 
+                                       onClick={() => setShowFullTranscript(!showFullTranscript)}
+                                       className="text-xs font-bold text-teal-700 hover:text-teal-900"
+                                     >
+                                       {showFullTranscript ? "Hide Transcript" : "Show Transcript"}
+                                     </button>
+                                   </div>
+                                   {showFullTranscript && (
+                                     <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 max-h-[350px] overflow-y-auto custom-scrollbar flex flex-col gap-3 font-medium">
+                                       {parseTranscript(sessionData.intake.call_transcript).map((bubble: any) => (
+                                         <div
+                                           key={bubble.id}
+                                           className={cn(
+                                             "flex flex-col max-w-[85%] rounded-[18px] p-3.5 shadow-sm text-xs",
+                                             bubble.isAgent
+                                               ? "bg-white self-start border border-gray-200 text-gray-800"
+                                               : bubble.isUser
+                                                 ? "bg-gray-900 text-white self-end"
+                                                 : "bg-gray-200 text-gray-500 text-[10px] self-center"
+                                           )}
+                                         >
+                                           <span className={cn(
+                                             "text-[8px] font-black uppercase tracking-wider mb-1 block",
+                                             bubble.isAgent ? "text-teal-700" : bubble.isUser ? "text-white/60" : "text-gray-400"
+                                           )}>
+                                             {bubble.speaker}
+                                           </span>
+                                           <p className="leading-relaxed">
+                                             {bubble.text}
+                                           </p>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   )}
+                                 </div>
+                               )}
+                             </div>
+                           ) : (
+                             <div className="text-center py-10">
+                               <Phone size={28} className="text-gray-300 mx-auto mb-2" />
+                               <p className="text-sm font-semibold text-gray-500">No voice intake interview has been conducted yet.</p>
+                             </div>
+                           )}
+                         </div>
+                       )}
+
+                       {/* Tab 3: Consultation (Scribe) */}
+                       {activeTab === "consultation" && (
+                         <div className="space-y-8">
+                           {sessionData.consultation ? (
+                             <div className="space-y-8">
+                               {/* SOAP note grid */}
+                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                                 {(['subjective', 'objective', 'assessment', 'plan'] as const).map((key) => (
+                                   <div key={key} className="bg-gray-50 border border-gray-100 rounded-2xl p-6 space-y-3">
+                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">{key}</span>
+                                     <p className="text-gray-700 text-xs leading-relaxed font-semibold italic">
+                                       "{sessionData.consultation.soap_note?.[key] || "Pending..."}"
+                                     </p>
+                                   </div>
+                                 ))}
+                               </div>
+
+                               {/* Diagnoses & Roadmap */}
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 space-y-4">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Identified Diagnoses</span>
+                                   <div className="flex flex-col gap-2">
+                                     {sessionData.consultation.diagnoses?.map((d: string, idx: number) => (
+                                       <div key={idx} className="px-4 py-2.5 bg-red-50/50 text-red-600 rounded-xl text-xs font-black border border-red-100/50 italic">
+                                         {d}
+                                       </div>
+                                     ))}
+                                   </div>
+                                 </div>
+                                 <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 space-y-4">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Therapeutic Roadmap</span>
+                                   <ul className="space-y-3">
+                                     {sessionData.consultation.treatment_plan?.map((t: string, idx: number) => (
+                                       <li key={idx} className="text-xs text-gray-600 font-bold flex gap-3 leading-relaxed">
+                                         <span className="w-1.5 h-1.5 bg-accent-primary rounded-full mt-1.5 shrink-0" />
+                                         {t}
+                                       </li>
+                                     ))}
+                                   </ul>
+                                 </div>
+                               </div>
+
+                               {/* Clinical Letter */}
+                               {sessionData.consultation.clinical_letter && (
+                                 <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8 space-y-4 relative overflow-hidden">
+                                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block text-center">GP Clinical Letter</span>
+                                   <div className="prose prose-slate max-w-none font-serif text-gray-800 leading-relaxed text-sm italic whitespace-pre-wrap scribe-letter relative z-10 px-4">
+                                     <ReactMarkdown>
+                                       {sessionData.consultation.clinical_letter}
+                                     </ReactMarkdown>
+                                   </div>
+                                 </div>
+                               )}
+                             </div>
+                           ) : (
+                             <div className="text-center py-10">
+                               <Mic2 size={28} className="text-gray-300 mx-auto mb-2" />
+                               <p className="text-sm font-semibold text-gray-500">No clinical scribe session has been recorded yet.</p>
+                             </div>
+                           )}
+                         </div>
+                       )}
+                    </div>
+                  </div>
+                )}
             </div>
         </div>
     );

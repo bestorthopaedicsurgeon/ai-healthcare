@@ -3,12 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mic2, Phone, MessageSquare, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { Mic2, Phone, MessageSquare, ChevronRight, FileSpreadsheet, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
 
 const modules = [
+  { label: "Summary", icon: LayoutDashboard, href: "/summary", color: "text-teal-700", bg: "bg-teal-50" },
   { label: "Triage", icon: FileSpreadsheet, href: "/triage", color: "text-teal-700", bg: "bg-teal-50" },
   { label: "Voice", icon: Phone, href: "/voice-agent", color: "text-teal-700", bg: "bg-teal-50" },
   { label: "Scribe", icon: Mic2, href: "/scribe", color: "text-teal-700", bg: "bg-teal-50" },

@@ -1,14 +1,29 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Mic2, Phone, MessageSquare, FileText, ChevronRight, Activity, Clock, Share2, MoreVertical, LayoutDashboard } from "lucide-react";
+import { 
+  Mic2, 
+  Phone, 
+  MessageSquare, 
+  FileText, 
+  ChevronRight, 
+  Activity, 
+  Clock, 
+  Share2, 
+  MoreVertical, 
+  LayoutDashboard, 
+  Trash2, 
+  Loader2 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
+import { toast } from "react-hot-toast";
 
 const tools = [
+  { id: "summary", label: "Summary", icon: LayoutDashboard, href: "/summary", color: "text-teal-700", bg: "bg-teal-50" },
   { id: "triage", label: "GP Referral", icon: FileText, href: "/triage", color: "text-teal-700", bg: "bg-teal-50" },
   { id: "voice", label: "Voice Agent", icon: Phone, href: "/voice-agent", color: "text-teal-700", bg: "bg-teal-50" },
   { id: "scribe", label: "Scribe", icon: Mic2, href: "/scribe", color: "text-teal-700", bg: "bg-teal-50" },
@@ -18,9 +33,58 @@ const tools = [
 export function SessionHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activePatient, activeSession, openSessionModal, sessionData } = usePatient();
+  const { 
+    activePatient, 
+    activeSession, 
+    openSessionModal, 
+    sessionData,
+    isRecording,
+    isPaused,
+    recordingTime,
+    recordingPatientName,
+    recordingPatientId,
+    setActivePatientId,
+    setActiveSessionId,
+    deletePatientPermanently
+  } = usePatient();
 
   const isDashboard = pathname === "/dashboard";
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+        setShowDeleteConfirm(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleDeletePatient = async () => {
+    if (!activePatient || isDeleting) return;
+    setIsDeleting(true);
+    const t = toast.loading("Permanently wiping patient and all data...");
+    try {
+      await deletePatientPermanently(activePatient.id);
+      toast.success("Patient successfully deleted", { id: t });
+      setActivePatientId(null);
+      setActiveSessionId(null);
+      setShowDeleteConfirm(false);
+      setIsMenuOpen(false);
+      router.push("/dashboard");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete patient", { id: t });
+      setIsDeleting(false);
+    }
+  };
 
   const isFollowup = sessionData?.patient_type === "followup";
   const displayedTools = tools
@@ -128,12 +192,98 @@ export function SessionHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <button className="p-2.5 text-muted hover:text-muted hover:bg-surface-2/50 rounded-xl transition-all">
-            <Share2 size={18} />
-          </button>
-          <button className="p-2.5 text-muted hover:text-muted hover:bg-surface-2/50 rounded-xl transition-all">
-            <MoreVertical size={18} />
-          </button>
+          {/* Active Scribe Recording Pill */}
+          {(isRecording || isPaused) && (
+            <button
+              onClick={() => {
+                if (recordingPatientId) {
+                  setActivePatientId(recordingPatientId);
+                  router.push("/scribe");
+                }
+              }}
+              className={cn(
+                "flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all hover:scale-[1.02] shadow-sm cursor-pointer mr-2",
+                isRecording 
+                  ? "bg-red-50 text-red-600 border-red-200 animate-pulse" 
+                  : "bg-orange-50 text-orange-600 border-orange-200"
+              )}
+            >
+              <div className={cn("w-2 h-2 rounded-full", isRecording ? "bg-red-600 animate-ping" : "bg-orange-600")} />
+              <span className="max-w-[120px] truncate">
+                {isRecording ? "Recording" : "Paused"}: {recordingPatientName}
+              </span>
+              <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 rounded border border-gray-100 text-gray-700">
+                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
+              </span>
+            </button>
+          )}
+          {activePatient && (
+            <div className="relative" ref={menuRef}>
+              <button 
+                onClick={() => {
+                  setIsMenuOpen(!isMenuOpen);
+                  setShowDeleteConfirm(false);
+                }}
+                className={cn(
+                  "p-2.5 text-muted hover:text-ink hover:bg-surface-2/50 rounded-xl transition-all cursor-pointer flex items-center justify-center",
+                  isMenuOpen && "bg-surface-2 text-ink"
+                )}
+              >
+                <MoreVertical size={18} />
+              </button>
+
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 z-50 origin-top-right"
+                  >
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                      >
+                        <Trash2 size={14} />
+                        Delete Patient
+                      </button>
+                    ) : (
+                      <div className="p-2 space-y-2 text-center bg-red-50/50 border border-red-100 rounded-xl">
+                        <p className="text-[10px] font-black text-red-800 uppercase tracking-wider leading-relaxed">
+                          Delete everything?
+                        </p>
+                        <p className="text-[9px] text-red-600 font-semibold leading-relaxed">
+                          This wipes all session data and consultations permanently.
+                        </p>
+                        <div className="flex gap-2 justify-center pt-1.5">
+                          <button
+                            onClick={handleDeletePatient}
+                            disabled={isDeleting}
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            {isDeleting ? (
+                              <Loader2 size={10} className="animate-spin" />
+                            ) : (
+                              "Yes, wipe"
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={isDeleting}
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            Keep
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
     </header>
