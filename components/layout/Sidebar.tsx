@@ -248,6 +248,16 @@ export function Sidebar() {
             <span className="text-sm font-bold">Clinical Hub</span>
         </button>
         <button
+            onClick={() => router.push("/settings/voice-agent")}
+            className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all group",
+                pathname === "/settings/voice-agent" ? "bg-accent-primary text-white glow-accent" : "text-sidebar-fg/30 hover:bg-white/5 hover:text-white"
+            )}
+        >
+            <Settings size={18} className={cn("transition-transform group-hover:rotate-90 duration-500", pathname === "/settings/voice-agent" && "text-white")} />
+            <span className="text-sm font-bold">Voice Agent Settings</span>
+        </button>
+        <button
           className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sidebar-fg/30 hover:bg-white/5 hover:text-white transition-all group"
         >
           <HelpCircle size={18} className="group-hover:rotate-12 transition-transform" />
