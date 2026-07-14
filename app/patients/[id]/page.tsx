@@ -40,7 +40,8 @@ export default function PatientProfilePage() {
         isLoading,
         sessionData,
         cancelScheduledIntake,
-        uploadPreviousScribe
+        uploadPreviousScribe,
+        deletePatientPermanently
     } = usePatient();
 
     // Find the current patient from the URL param
@@ -50,6 +51,8 @@ export default function PatientProfilePage() {
     const [isCancellingCall, setIsCancellingCall] = useState(false);
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [isUploadingScribe, setIsUploadingScribe] = useState(false);
+    const [isDeletingPatient, setIsDeletingPatient] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const scribeInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -72,6 +75,23 @@ export default function PatientProfilePage() {
             toast.error(err?.message || "Could not cancel the call", { id: t });
         } finally {
             setIsCancellingCall(false);
+        }
+    };
+
+    const handleDeletePatient = async () => {
+        if (!currentPatient || isDeletingPatient) return;
+        setIsDeletingPatient(true);
+        const t = toast.loading("Permanently deleting patient and all data...");
+        try {
+            const result = await deletePatientPermanently(currentPatient.id);
+            toast.success("Patient and all associated data deleted", { id: t });
+            setActivePatientId(null);
+            setActiveSessionId(null);
+            router.push("/dashboard");
+        } catch (err: any) {
+            toast.error(err?.message || "Could not delete patient", { id: t });
+            setIsDeletingPatient(false);
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -172,6 +192,42 @@ export default function PatientProfilePage() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Permanent delete — irreversible, wipes GP letter/triage,
+                            voice call, scribe consultations, and all sessions for
+                            this patient. 2-step confirm to prevent misclicks. */}
+                        <div className="shrink-0">
+                            {!showDeleteConfirm ? (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                >
+                                    <Trash2 size={14} /> Delete Patient
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl p-2">
+                                    <span className="text-[11px] font-bold text-red-700 px-2">Delete everything?</span>
+                                    <button
+                                        onClick={handleDeletePatient}
+                                        disabled={isDeletingPatient}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white transition-colors flex items-center gap-1.5"
+                                    >
+                                        {isDeletingPatient ? (
+                                            <><Loader2 size={12} className="animate-spin" /> Deleting...</>
+                                        ) : (
+                                            <>Yes, delete all</>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        disabled={isDeletingPatient}
+                                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-gray-700 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 

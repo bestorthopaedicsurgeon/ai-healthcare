@@ -132,6 +132,11 @@ interface PatientContextType {
     summary: string | null;
     summary_generated: boolean;
   }>;
+  deletePatientPermanently: (patientId: string) => Promise<{
+    message: string;
+    patient_id: string;
+    deleted: Record<string, number>;
+  }>;
   sessionData: any | null;
   isSessionDataLoading: boolean;
   refreshSessionData: () => Promise<void>;
@@ -338,6 +343,25 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       file_url: string;
       summary: string | null;
       summary_generated: boolean;
+    };
+  };
+
+  // Permanently wipe a patient and everything linked to them (sessions,
+  // GP letter/triage, voice call, scribe consultations, categorization) —
+  // irreversible, unlike the soft-delete PATCH/DELETE elsewhere.
+  const deletePatientPermanently = async (patientId: string) => {
+    const res = await apiFetch(
+      `${API_CONSTANTS.PATIENTS_BASE}/${patientId}/purge`,
+      { method: "DELETE" },
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Failed to delete patient");
+    await refreshPatients();
+    await refreshSessions();
+    return data as {
+      message: string;
+      patient_id: string;
+      deleted: Record<string, number>;
     };
   };
 
@@ -616,6 +640,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
       confirmBulkPatients,
       cancelScheduledIntake,
       uploadPreviousScribe,
+      deletePatientPermanently,
       sessionData,
       isSessionDataLoading,
       refreshSessionData
