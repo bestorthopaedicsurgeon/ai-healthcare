@@ -16,6 +16,8 @@ export default function robots(): MetadataRoute.Robots {
         "/voice-agent",
         "/chat",
         "/patients",
+        "/summary",
+        "/settings",
         "/login",
         "/signup",
       ],

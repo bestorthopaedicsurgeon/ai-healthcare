@@ -2,29 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Host-based routing for production domains.
 // clinaxy.ai        -> marketing site (/, /pricing)
-// app.clinaxy.ai    -> product app (login, signup, dashboard, modules)
-// clinaxy.com/*     -> permanent redirect to the .ai equivalent (defense in
-//                      depth; Vercel's domain-level redirect handles it first)
+// app.clinaxy.ai    -> product app (everything else: auth, dashboard, modules)
+// clinaxy.com/*     -> permanent redirect to clinaxy.ai (defense in depth;
+//                      Vercel's domain-level redirect handles it first)
 // localhost and *.vercel.app previews are untouched so dev and preview
 // deployments keep serving every route.
+//
+// Marketing routes are the allowlist (they change rarely and deliberately);
+// every other route is assumed to belong to the app, so new app pages work
+// on app.clinaxy.ai without touching this file.
 
 const MARKETING_HOST = "clinaxy.ai";
 const APP_HOST = "app.clinaxy.ai";
 
-const APP_ROUTES = [
-    "/login",
-    "/signup",
-    "/dashboard",
-    "/scribe",
-    "/triage",
-    "/voice-agent",
-    "/chat",
-    "/patients",
-];
+const MARKETING_ROUTES = ["/", "/pricing"];
 
-function isAppRoute(pathname: string) {
-    return APP_ROUTES.some(
-        (route) => pathname === route || pathname.startsWith(`${route}/`)
+function isMarketingRoute(pathname: string) {
+    return MARKETING_ROUTES.some(
+        (route) =>
+            pathname === route ||
+            (route !== "/" && pathname.startsWith(`${route}/`))
     );
 }
 
@@ -33,10 +30,13 @@ export default function proxy(request: NextRequest) {
     const host = (request.headers.get("host") ?? "").toLowerCase().split(":")[0];
     const { pathname, search } = request.nextUrl;
 
-    // Any clinaxy.com host falls back to the canonical .ai domains.
+    // Any clinaxy.com host falls back to the canonical marketing domain,
+    // which forwards app paths on to app.clinaxy.ai itself.
     if (host === "clinaxy.com" || host.endsWith(".clinaxy.com")) {
-        const target = isAppRoute(pathname) ? APP_HOST : MARKETING_HOST;
-        return NextResponse.redirect(`https://${target}${pathname}${search}`, 308);
+        return NextResponse.redirect(
+            `https://${MARKETING_HOST}${pathname}${search}`,
+            308
+        );
     }
 
     // Canonicalize www to the apex.
@@ -55,10 +55,17 @@ export default function proxy(request: NextRequest) {
                 headers: { "content-type": "text/plain" },
             });
         }
+        // The sitemap belongs to the marketing domain only.
+        if (pathname === "/sitemap.xml") {
+            return NextResponse.redirect(
+                `https://${MARKETING_HOST}/sitemap.xml`,
+                308
+            );
+        }
         if (pathname === "/") {
             return NextResponse.redirect(`https://${APP_HOST}/dashboard`, 307);
         }
-        if (!isAppRoute(pathname)) {
+        if (isMarketingRoute(pathname)) {
             return NextResponse.redirect(
                 `https://${MARKETING_HOST}${pathname}${search}`,
                 308
@@ -67,11 +74,16 @@ export default function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    if (host === MARKETING_HOST && isAppRoute(pathname)) {
-        return NextResponse.redirect(
-            `https://${APP_HOST}${pathname}${search}`,
-            308
-        );
+    if (host === MARKETING_HOST) {
+        if (pathname === "/robots.txt" || pathname === "/sitemap.xml") {
+            return NextResponse.next();
+        }
+        if (!isMarketingRoute(pathname)) {
+            return NextResponse.redirect(
+                `https://${APP_HOST}${pathname}${search}`,
+                308
+            );
+        }
     }
 
     return NextResponse.next();
